@@ -1,0 +1,46 @@
+[Settings]
+NumFields=5
+
+[Field 1]
+Type=Label
+Text=
+Left=-1000
+Right=-900
+Top=-1000
+Bottom=-900
+
+[Field 2]
+Type=RadioButton
+Text=
+Left=-1000
+Right=-900
+Top=-1000
+Bottom=-900
+State=1
+
+[Field 3]
+Type=RadioButton
+Text=
+Left=-1000
+Right=-900
+Top=-1000
+Bottom=-900
+State=0
+
+[Field 4]
+Type=RadioButton
+Text=
+Left=-1000
+Right=-900
+Top=-1000
+Bottom=-900
+State=0
+
+[Field 5]
+Type=CheckBox
+Text=Create @CPACK_PACKAGE_NAME@ Desktop Icon
+Left=0
+Right=-1
+Top=20
+Bottom=30
+State=0

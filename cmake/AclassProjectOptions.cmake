@@ -1,0 +1,5 @@
+function(aclass_setup_project_options)
+    set(CMAKE_CXX_STANDARD 17 PARENT_SCOPE)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON PARENT_SCOPE)
+    set(CMAKE_CXX_EXTENSIONS OFF PARENT_SCOPE)
+endfunction()

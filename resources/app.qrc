@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <!-- Put icons/images under resources/icons and register them here. -->
+    </qresource>
+</RCC>
