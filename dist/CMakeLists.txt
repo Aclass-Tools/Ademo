@@ -45,7 +45,6 @@ if(WIN32)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_DEBUG_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_RELEASE_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_INSTALLER_DIR}"
-            COMMAND ${CMAKE_COMMAND} -E remove_directory "${DIST_RUNTIME_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_RUNTIME_DIR}"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:AclassTool>" "${DIST_RUNTIME_DIR}/"
             COMMAND "${WINDEPLOYQT_EXECUTABLE}" "${DIST_RUNTIME_DIR}/$<TARGET_FILE_NAME:AclassTool>"
@@ -68,6 +67,10 @@ if(WIN32)
     set(CPACK_INSTALLED_DIRECTORIES "${DIST_RELEASE_DIR};.")
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
     set(CPACK_NSIS_DISPLAY_NAME "${PROJECT_NAME}")
+    # 安装器图标与卸载程序图标使用统一 .ico 资源。
+    set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/resources/icons/app_icon.ico")
+    set(CPACK_NSIS_MUI_UNIICON "${CMAKE_SOURCE_DIR}/resources/icons/app_icon.ico")
+    set(CPACK_NSIS_INSTALLED_ICON_NAME "AclassTool.exe")
     # Keep InstallOptions page enabled for desktop shortcut checkbox.
     # PATH radio options are hidden by custom NSIS.InstallOptions.ini template.
     set(CPACK_NSIS_MODIFY_PATH ON)
@@ -75,9 +78,9 @@ if(WIN32)
     # Keep these as newline-delimited strings (not CMake lists) so NSIS receives
     # one command per line, avoiding broken semicolon concatenation.
     set(CPACK_NSIS_CREATE_ICONS_EXTRA [[
-CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\AclassTool.lnk" "$INSTDIR\AclassTool.exe"
+CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\AclassTool.lnk" "$INSTDIR\AclassTool.exe" "" "$INSTDIR\resources\icons\app_icon.ico" 0
 StrCmp $INSTALL_DESKTOP 1 0 +2
-CreateShortCut "$DESKTOP\AclassTool.lnk" "$INSTDIR\AclassTool.exe"
+CreateShortCut "$DESKTOP\AclassTool.lnk" "$INSTDIR\AclassTool.exe" "" "$INSTDIR\resources\icons\app_icon.ico" 0
 ]])
     set(CPACK_NSIS_DELETE_ICONS_EXTRA [[
 Delete "$SMPROGRAMS\$MUI_TEMP\AclassTool.lnk"

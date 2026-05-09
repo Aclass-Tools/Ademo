@@ -1,5 +1,7 @@
-<RCC>
+﻿<RCC>
     <qresource prefix="/">
-        <!-- Put icons/images under resources/icons and register them here. -->
+        <!-- 应用主图标资源（Windows 优先使用 ico）。 -->
+        <file alias="icons/app_icon.ico">icons/app_icon.ico</file>
+        <file alias="icons/app_icon.png">icons/app_icon.png</file>
     </qresource>
 </RCC>
