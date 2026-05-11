@@ -14,7 +14,6 @@
 #pragma once
 
 #include <QMainWindow>
-#include <QVector>
 #include "ui/theme/thememanager.h"
 
 class ApiClient;
@@ -47,12 +46,6 @@ public:
     ~MainWindow();
 
 private:
-    struct NavEntry
-    {
-        QToolButton *button = nullptr;
-        QWidget *page = nullptr;
-    };
-
     // 统一创建并挂载页面实例，同时组装导航映射、按钮初始化与导航点击绑定。
     void setupPages();
     // 统一处理底栏常驻显示（首次创建 + 基于成员变量刷新内容）。
@@ -82,7 +75,6 @@ private:
     LogPage *m_logPage = nullptr;
     PluginPage *m_pluginPage = nullptr;
 
-    QVector<NavEntry> m_navEntries;
     QButtonGroup *m_navButtonGroup = nullptr;
 
     QLabel *m_connectionLabel = nullptr;

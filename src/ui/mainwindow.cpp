@@ -29,7 +29,6 @@
 #include <QWidget>
 
 #include <type_traits>
-#include <utility>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -54,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_currentConfigVersion.clear();
     setupStatusBarContent();
     setupCommunicationBindings();
+    ui->btnToolHome->setChecked(true);
     switchToPage(ui->pageHome);
 
     // 启动探针。
@@ -68,8 +68,6 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupPages()
 {
-    m_navEntries.clear();
-
     // 创建按钮分组并设置互斥：同一时刻仅允许一个导航按钮处于选中态。
     if (!m_navButtonGroup) {
         m_navButtonGroup = new QButtonGroup(this);
@@ -92,9 +90,6 @@ void MainWindow::setupPages()
             navButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
             navButton->setStyleSheet(navStyle);
             m_navButtonGroup->addButton(navButton);
-
-            // 记录按钮与页面的映射，用于统一切页与选中态同步。
-            m_navEntries.push_back({navButton, stackPage});
 
             // 绑定导航点击：点击后切换到对应页面。
             connect(navButton, &QToolButton::clicked, this, [this, page = stackPage]() {
@@ -152,15 +147,8 @@ void MainWindow::switchToPage(QWidget *page)
         return;
     }
 
-    // 1) 切换堆叠容器到目标页面。
+    // 仅负责切换堆叠页。按钮选中态由点击行为 + QButtonGroup 互斥机制维护。
     ui->mainPageStack->setCurrentWidget(page);
-
-    // 2) 同步所有导航按钮的选中态，保证 UI 状态与当前页面一致。
-    for (const NavEntry &entry : std::as_const(m_navEntries)) {
-        if (entry.button) {
-            entry.button->setChecked(entry.page == page);
-        }
-    }
 }
 
 void MainWindow::setupCommunicationBindings()
