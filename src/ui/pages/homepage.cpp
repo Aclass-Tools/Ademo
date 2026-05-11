@@ -19,10 +19,16 @@ HomePage::~HomePage()
     delete ui;
 }
 
+QString HomePage::currentProjectName() const
+{
+    return ui->homeProjectSelectorCombo->currentText().trimmed();
+}
+
 void HomePage::refreshCurrentProjectLabel()
 {
-    const QString currentText = ui->homeProjectSelectorCombo->currentText().trimmed();
+    const QString currentText = currentProjectName();
     ui->homeCurrentProjectValueLabel->setText(
         currentText.isEmpty() ? QStringLiteral("未选择项目") : currentText
     );
+    emit currentProjectChanged(currentText);
 }

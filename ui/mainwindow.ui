@@ -171,28 +171,28 @@
     <item>
      <widget class="QStackedWidget" name="mainPageStack">
       <widget class="QWidget" name="pageHome">
-       <layout class="QVBoxLayout" name="verticalLayoutHome"/>
+       <layout class="QVBoxLayout" name="homeLayout"/>
       </widget>
       <widget class="QWidget" name="pageProtocolEditor">
-       <layout class="QVBoxLayout" name="verticalLayoutProtocol"/>
+       <layout class="QVBoxLayout" name="protocolEditorLayout"/>
       </widget>
       <widget class="QWidget" name="pageProtocolDebug">
-       <layout class="QVBoxLayout" name="verticalLayoutProtocolDebug"/>
+       <layout class="QVBoxLayout" name="protocolDebugLayout"/>
       </widget>
       <widget class="QWidget" name="pageProtocolExport">
-       <layout class="QVBoxLayout" name="verticalLayoutProtocolExport"/>
+       <layout class="QVBoxLayout" name="protocolExportLayout"/>
       </widget>
       <widget class="QWidget" name="pageDeviceUpgrade">
-       <layout class="QVBoxLayout" name="verticalLayoutDeviceUpgrade"/>
+       <layout class="QVBoxLayout" name="deviceUpgradeLayout"/>
       </widget>
       <widget class="QWidget" name="pageTerminal">
-       <layout class="QVBoxLayout" name="verticalLayoutTerminal"/>
+       <layout class="QVBoxLayout" name="terminalLayout"/>
       </widget>
       <widget class="QWidget" name="pageLog">
-       <layout class="QVBoxLayout" name="verticalLayoutLog"/>
+       <layout class="QVBoxLayout" name="logLayout"/>
       </widget>
       <widget class="QWidget" name="pagePlugin">
-       <layout class="QVBoxLayout" name="verticalLayoutPlugin"/>
+       <layout class="QVBoxLayout" name="pluginLayout"/>
       </widget>
      </widget>
     </item>

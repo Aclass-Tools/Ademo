@@ -21,10 +21,15 @@
 #include "ui/theme/thememanager.h"
 #include "ui_mainwindow.h"
 
-#include <QLabel>
 #include <QApplication>
+#include <QButtonGroup>
+#include <QLabel>
 #include <QStatusBar>
 #include <QToolButton>
+#include <QWidget>
+
+#include <type_traits>
+#include <utility>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -40,60 +45,16 @@ MainWindow::MainWindow(QWidget *parent)
     m_apiClient = new ApiClient(this);
     m_wsClient = new WebSocketClient(this);
 
-    // 解耦页面实例：每个页面都有独立 .ui 与类。
-    m_homePage = new HomePage(this);
-    m_protocolEditorPage = new ProtocolEditorPage(this);
-    m_protocolDebugPage = new ProtocolDebugPage(this);
-    m_protocolExportPage = new ProtocolExportPage(this);
-    m_deviceUpgradePage = new DeviceUpgradePage(this);
-    m_terminalPage = new TerminalPage(this);
-    m_logPage = new LogPage(this);
-    m_pluginPage = new PluginPage(this);
-
-    // 将页面注入 mainwindow.ui 中预留的容器布局。
-    ui->verticalLayoutHome->addWidget(m_homePage);
-    ui->verticalLayoutProtocol->addWidget(m_protocolEditorPage);
-    ui->verticalLayoutProtocolDebug->addWidget(m_protocolDebugPage);
-    ui->verticalLayoutProtocolExport->addWidget(m_protocolExportPage);
-    ui->verticalLayoutDeviceUpgrade->addWidget(m_deviceUpgradePage);
-    ui->verticalLayoutTerminal->addWidget(m_terminalPage);
-    ui->verticalLayoutLog->addWidget(m_logPage);
-    ui->verticalLayoutPlugin->addWidget(m_pluginPage);
+    setupPages();
 
     // 主窗体基础样式由主题管理器统一生成。
     setStyleSheet(ThemeManager::mainWindowStyle(m_palette));
 
-    // 顶部两行方块导航按钮统一样式。
-    auto setNavButtonStyle = [this](QToolButton *button) {
-        button->setCheckable(true);
-        button->setToolButtonStyle(Qt::ToolButtonTextOnly);
-        button->setStyleSheet(ThemeManager::navButtonStyle(m_palette));
-    };
-    setNavButtonStyle(ui->btnToolHome);
-    setNavButtonStyle(ui->btnProtocolEdit);
-    setNavButtonStyle(ui->btnDeviceConnect);
-    setNavButtonStyle(ui->btnProtocolDebug);
-    setNavButtonStyle(ui->btnDeviceUpgrade);
-    setNavButtonStyle(ui->btnTerminalDebug);
-    setNavButtonStyle(ui->btnLogExport);
-    setNavButtonStyle(ui->btnPluginScript);
-
-    // 强制设置导航文本，避免 .ui 在不同编码环境下出现中文乱码。
-    // ui->btnToolHome->setText(QStringLiteral("工具\n首页"));
-    // ui->btnProtocolEdit->setText(QStringLiteral("协议\n编辑"));
-    // ui->btnDeviceConnect->setText(QStringLiteral("设备\n连接"));
-    // ui->btnProtocolDebug->setText(QStringLiteral("协议\n调试"));
-    // ui->btnDeviceUpgrade->setText(QStringLiteral("设备\n升级"));
-    // ui->btnTerminalDebug->setText(QStringLiteral("终端\n调试"));
-    // ui->btnLogExport->setText(QStringLiteral("日志\n导出"));
-    // ui->btnPluginScript->setText(QStringLiteral("外挂\n脚本"));
-
-    // 默认选中首页。
-    ui->btnToolHome->setChecked(true);
-    ui->mainPageStack->setCurrentWidget(ui->pageHome);
-
-    setupNavigationTree();
-    setupConnections();
+    m_currentProjectName = m_homePage ? m_homePage->currentProjectName() : QString();
+    m_currentConfigVersion.clear();
+    setupStatusBarContent();
+    setupCommunicationBindings();
+    switchToPage(ui->pageHome);
 
     // 启动探针。
     m_apiClient->getVersion();
@@ -105,135 +66,156 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::setupNavigationTree()
+void MainWindow::setupPages()
 {
-    // 底部状态栏轻量指标。
-    m_connectionLabel = new QLabel(QStringLiteral("WS: Connecting"), this);
-    m_userLabel = new QLabel(QStringLiteral("User: engineer"), this);
-    m_configVersionLabel = new QLabel(QStringLiteral("Config Version: --"), this);
-    statusBar()->addWidget(m_connectionLabel);
-    statusBar()->addPermanentWidget(m_userLabel);
-    statusBar()->addPermanentWidget(m_configVersionLabel);
+    m_navEntries.clear();
+
+    // 创建按钮分组并设置互斥：同一时刻仅允许一个导航按钮处于选中态。
+    if (!m_navButtonGroup) {
+        m_navButtonGroup = new QButtonGroup(this);
+        m_navButtonGroup->setExclusive(true);
+    }
+
+    // 统一导航按钮样式，避免每个按钮重复生成样式字符串。
+    const QString navStyle = ThemeManager::navButtonStyle(m_palette);
+
+    auto createAttachAndRegister = [this, navStyle](auto *&member, auto *layout, QToolButton *navButton, QWidget *stackPage) {
+        using PageT = std::remove_pointer_t<std::remove_reference_t<decltype(member)>>;
+        member = new PageT(this);
+        if (layout) {
+            layout->addWidget(member);
+        }
+
+        if (navButton && stackPage) {
+            // 初始化导航按钮行为与外观。
+            navButton->setCheckable(true);
+            navButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+            navButton->setStyleSheet(navStyle);
+            m_navButtonGroup->addButton(navButton);
+
+            // 记录按钮与页面的映射，用于统一切页与选中态同步。
+            m_navEntries.push_back({navButton, stackPage});
+
+            // 绑定导航点击：点击后切换到对应页面。
+            connect(navButton, &QToolButton::clicked, this, [this, page = stackPage]() {
+                switchToPage(page);
+            });
+        }
+    };
+
+    createAttachAndRegister(m_homePage, ui->homeLayout, ui->btnToolHome, ui->pageHome);
+    createAttachAndRegister(m_protocolEditorPage, ui->protocolEditorLayout, ui->btnProtocolEdit, ui->pageProtocolEditor);
+    createAttachAndRegister(m_protocolDebugPage, ui->protocolDebugLayout, ui->btnProtocolDebug, ui->pageProtocolDebug);
+    createAttachAndRegister(m_protocolExportPage, ui->protocolExportLayout, ui->btnDeviceConnect, ui->pageProtocolExport);
+    createAttachAndRegister(m_deviceUpgradePage, ui->deviceUpgradeLayout, ui->btnDeviceUpgrade, ui->pageDeviceUpgrade);
+    createAttachAndRegister(m_terminalPage, ui->terminalLayout, ui->btnTerminalDebug, ui->pageTerminal);
+    createAttachAndRegister(m_logPage, ui->logLayout, ui->btnLogExport, ui->pageLog);
+    createAttachAndRegister(m_pluginPage, ui->pluginLayout, ui->btnPluginScript, ui->pagePlugin);
 }
 
-void MainWindow::setupConnections()
+void MainWindow::setupStatusBarContent()
 {
-    // 说明：
-    // 当前导航使用显式互斥勾选，行为最直观。
-    // 未来导航数量继续增加时可切到 QActionGroup/QButtonGroup。
+    // 延迟创建：首次调用时创建底栏标签并挂到状态栏。
+    if (!m_connectionLabel) {
+        m_connectionLabel = new QLabel(this);
+        statusBar()->addWidget(m_connectionLabel);
+    }
+    if (!m_userLabel) {
+        m_userLabel = new QLabel(this);
+        statusBar()->addPermanentWidget(m_userLabel);
+    }
+    if (!m_configVersionLabel) {
+        m_configVersionLabel = new QLabel(this);
+        statusBar()->addPermanentWidget(m_configVersionLabel);
+    }
 
-    connect(ui->btnToolHome, &QToolButton::clicked, this, [this]() {
-        ui->btnToolHome->setChecked(true);
-        ui->btnProtocolEdit->setChecked(false);
-        ui->btnDeviceConnect->setChecked(false);
-        ui->btnProtocolDebug->setChecked(false);
-        ui->btnDeviceUpgrade->setChecked(false);
-        ui->btnTerminalDebug->setChecked(false);
-        ui->btnLogExport->setChecked(false);
-        ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageHome);
-    });
-    connect(ui->btnProtocolEdit, &QToolButton::clicked, this, [this]() {
-        ui->btnToolHome->setChecked(false);
-        ui->btnProtocolEdit->setChecked(true);
-        ui->btnDeviceConnect->setChecked(false);
-        ui->btnProtocolDebug->setChecked(false);
-        ui->btnDeviceUpgrade->setChecked(false);
-        ui->btnTerminalDebug->setChecked(false);
-        ui->btnLogExport->setChecked(false);
-        ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageProtocolEditor);
-    });
-    connect(ui->btnDeviceConnect, &QToolButton::clicked, this, [this]() {
-        ui->btnToolHome->setChecked(false);
-        ui->btnProtocolEdit->setChecked(false);
-        ui->btnDeviceConnect->setChecked(true);
-        ui->btnProtocolDebug->setChecked(false);
-        ui->btnDeviceUpgrade->setChecked(false);
-        ui->btnTerminalDebug->setChecked(false);
-        ui->btnLogExport->setChecked(false);
-        ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageProtocolExport);
-    });
-    connect(ui->btnProtocolDebug, &QToolButton::clicked, this, [this]() {
-        ui->btnToolHome->setChecked(false);
-        ui->btnProtocolEdit->setChecked(false);
-        ui->btnDeviceConnect->setChecked(false);
-        ui->btnProtocolDebug->setChecked(true);
-        ui->btnDeviceUpgrade->setChecked(false);
-        ui->btnTerminalDebug->setChecked(false);
-        ui->btnLogExport->setChecked(false);
-        ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageProtocolDebug);
-    });
-    connect(ui->btnDeviceUpgrade, &QToolButton::clicked, this, [this]() {
-        ui->btnToolHome->setChecked(false);
-        ui->btnProtocolEdit->setChecked(false);
-        ui->btnDeviceConnect->setChecked(false);
-        ui->btnProtocolDebug->setChecked(false);
-        ui->btnDeviceUpgrade->setChecked(true);
-        ui->btnTerminalDebug->setChecked(false);
-        ui->btnLogExport->setChecked(false);
-        ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageDeviceUpgrade);
-    });
-    connect(ui->btnTerminalDebug, &QToolButton::clicked, this, [this]() {
-        ui->btnToolHome->setChecked(false);
-        ui->btnProtocolEdit->setChecked(false);
-        ui->btnDeviceConnect->setChecked(false);
-        ui->btnProtocolDebug->setChecked(false);
-        ui->btnDeviceUpgrade->setChecked(false);
-        ui->btnTerminalDebug->setChecked(true);
-        ui->btnLogExport->setChecked(false);
-        ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageTerminal);
-    });
-    connect(ui->btnLogExport, &QToolButton::clicked, this, [this]() {
-        ui->btnToolHome->setChecked(false);
-        ui->btnProtocolEdit->setChecked(false);
-        ui->btnDeviceConnect->setChecked(false);
-        ui->btnProtocolDebug->setChecked(false);
-        ui->btnDeviceUpgrade->setChecked(false);
-        ui->btnTerminalDebug->setChecked(false);
-        ui->btnLogExport->setChecked(true);
-        ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageLog);
-    });
-    connect(ui->btnPluginScript, &QToolButton::clicked, this, [this]() {
-        ui->btnToolHome->setChecked(false);
-        ui->btnProtocolEdit->setChecked(false);
-        ui->btnDeviceConnect->setChecked(false);
-        ui->btnProtocolDebug->setChecked(false);
-        ui->btnDeviceUpgrade->setChecked(false);
-        ui->btnTerminalDebug->setChecked(false);
-        ui->btnLogExport->setChecked(false);
-        ui->btnPluginScript->setChecked(true);
-        ui->mainPageStack->setCurrentWidget(ui->pagePlugin);
-    });
+    const QString shownProject = m_currentProjectName.trimmed().isEmpty()
+        ? QStringLiteral("未选择项目")
+        : m_currentProjectName.trimmed();
+    m_connectionLabel->setText(QStringLiteral("当前项目: %1").arg(shownProject));
 
-    // 基础设施事件 -> 状态指示。
+    const QString shownUser = m_currentUserName.trimmed().isEmpty()
+        ? QStringLiteral("--")
+        : m_currentUserName.trimmed();
+    m_userLabel->setText(QStringLiteral("User: %1").arg(shownUser));
+
+    const QString shownVersion = m_currentConfigVersion.trimmed().isEmpty()
+        ? QStringLiteral("--")
+        : m_currentConfigVersion.trimmed();
+    m_configVersionLabel->setText(QStringLiteral("Config Version: %1").arg(shownVersion));
+}
+
+void MainWindow::switchToPage(QWidget *page)
+{
+    // 防御：空页面直接忽略，避免非法切换。
+    if (!page) {
+        return;
+    }
+
+    // 1) 切换堆叠容器到目标页面。
+    ui->mainPageStack->setCurrentWidget(page);
+
+    // 2) 同步所有导航按钮的选中态，保证 UI 状态与当前页面一致。
+    for (const NavEntry &entry : std::as_const(m_navEntries)) {
+        if (entry.button) {
+            entry.button->setChecked(entry.page == page);
+        }
+    }
+}
+
+void MainWindow::setupCommunicationBindings()
+{
+    // 目标：
+    // 1) 将通信层（HTTP/WebSocket）异步事件统一接入主窗口；
+    // 2) 在主窗口消费通信异常与关键数据回调；
+    // 3) 保留消息分发占位，后续由页面或消息总线承接业务逻辑。
+
+    // ApiClient::versionReceived:
+    // 启动后会请求配置版本。收到结果后更新状态栏右侧版本标识，
+    // 让用户可直观看到当前后端配置版本是否已成功返回。
     connect(m_apiClient, &ApiClient::versionReceived, this, [this](const QString &version) {
-        m_configVersionLabel->setText(QStringLiteral("Config Version: %1").arg(version.isEmpty() ? QStringLiteral("--") : version));
+        m_currentConfigVersion = version;
+        setupStatusBarContent();
     });
-    // 占位阶段：先保留事件连接，后续由页面层接入实际逻辑。
+
+    // ApiClient::pointsReceived / conflictDetected:
+    // 当前阶段先占位接住信号，避免后续重构时遗漏连接点；
+    // 当页面模型接入后，可将这里改为转发到具体页面或数据总线。
     connect(m_apiClient, &ApiClient::pointsReceived, this, [](const QByteArray &) {});
     connect(m_apiClient, &ApiClient::conflictDetected, this, [](int) {});
+
+    // ApiClient::requestFailed:
+    // HTTP/接口请求失败时，在状态栏给出短提示，便于快速定位通信异常。
     connect(m_apiClient, &ApiClient::requestFailed, this, [this](const QString &message) {
         showStatus(QStringLiteral("Request failed: %1").arg(message));
     });
 
+    // WebSocketClient::connected / disconnected:
+    // 当前不映射到底栏，只保留短提示用于调试观察连接变化。
     connect(m_wsClient, &WebSocketClient::connected, this, [this]() {
-        m_connectionLabel->setText(QStringLiteral("WS: Online"));
         showStatus(QStringLiteral("WebSocket connected"));
     });
     connect(m_wsClient, &WebSocketClient::disconnected, this, [this]() {
-        m_connectionLabel->setText(QStringLiteral("WS: Offline"));
         showStatus(QStringLiteral("WebSocket disconnected"));
     });
+
+    // WebSocketClient::textMessageReceived:
+    // 当前先占位；后续可在这里接入消息路由（例如转发给 Home/QML 或各业务页）。
     connect(m_wsClient, &WebSocketClient::textMessageReceived, this, [](const QString &) {});
+
+    // WebSocketClient::errorOccurred:
+    // 连接或收发异常时输出错误提示，辅助排障。
     connect(m_wsClient, &WebSocketClient::errorOccurred, this, [this](const QString &message) {
         showStatus(QStringLiteral("WebSocket error: %1").arg(message));
     });
+
+    // 首页项目选择变化 -> 底栏“当前项目”。
+    if (m_homePage) {
+        connect(m_homePage, &HomePage::currentProjectChanged, this, [this](const QString &projectName) {
+            m_currentProjectName = projectName;
+            setupStatusBarContent();
+        });
+    }
 }
 
 void MainWindow::showStatus(const QString &message)
@@ -241,4 +223,3 @@ void MainWindow::showStatus(const QString &message)
     // 临时提示条；长期状态由状态栏标签承载。
     statusBar()->showMessage(message, 3000);
 }
-

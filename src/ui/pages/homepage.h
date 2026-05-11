@@ -19,6 +19,10 @@ class HomePage : public PlaceholderPageBase
 public:
     explicit HomePage(QWidget *parent = nullptr);
     ~HomePage();
+    QString currentProjectName() const;
+
+signals:
+    void currentProjectChanged(const QString &projectName);
 
 private:
     void refreshCurrentProjectLabel();
