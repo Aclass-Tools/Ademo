@@ -6,7 +6,6 @@ TerminalPage::TerminalPage(QWidget *parent)
     , ui(new Ui::TerminalPage)
 {
     ui->setupUi(this);
-    setTitleLabel(ui->titleLabel);
     applyDefaultPlaceholderStyle(ThemeManager::palette(ThemeKind::IndustrialBlue));
 }
 
@@ -14,3 +13,5 @@ TerminalPage::~TerminalPage()
 {
     delete ui;
 }
+
+

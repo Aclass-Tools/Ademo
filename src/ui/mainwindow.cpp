@@ -48,17 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_deviceUpgradePage = new DeviceUpgradePage(this);
     m_terminalPage = new TerminalPage(this);
     m_logPage = new LogPage(this);
-    m_pluginPage = new PluginPage(this);
-
-    // 在装配层设置占位标题，保持页面类通用。
-    m_homePage->setTitle(QStringLiteral("首页（占位）"));
-    m_protocolEditorPage->setTitle(QStringLiteral("协议编辑（占位）"));
-    m_protocolDebugPage->setTitle(QStringLiteral("协议调试（占位）"));
-    m_protocolExportPage->setTitle(QStringLiteral("协议导出（占位）"));
-    m_deviceUpgradePage->setTitle(QStringLiteral("设备升级（占位）"));
-    m_terminalPage->setTitle(QStringLiteral("终端（占位）"));
-    m_logPage->setTitle(QStringLiteral("日志（占位）"));
-    m_pluginPage->setTitle(QStringLiteral("外挂（占位）"));
+    m_pluginPage = new PluginPage(this);
 
     // 将页面注入 mainwindow.ui 中预留的容器布局。
     ui->verticalLayoutHome->addWidget(m_homePage);
@@ -251,3 +241,4 @@ void MainWindow::showStatus(const QString &message)
     // 临时提示条；长期状态由状态栏标签承载。
     statusBar()->showMessage(message, 3000);
 }
+

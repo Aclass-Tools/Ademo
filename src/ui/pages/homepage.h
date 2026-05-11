@@ -21,5 +21,7 @@ public:
     ~HomePage();
 
 private:
+    void refreshCurrentProjectLabel();
+
     Ui::HomePage *ui;
 };

@@ -2,44 +2,107 @@
 <ui version="4.0">
  <class>HomePage</class>
  <widget class="QWidget" name="HomePage">
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="spacing">
-    <number>12</number>
-   </property>
-   <property name="leftMargin">
-    <number>16</number>
-   </property>
-   <property name="topMargin">
-    <number>16</number>
-   </property>
-   <property name="rightMargin">
-    <number>16</number>
-   </property>
-   <property name="bottomMargin">
-    <number>16</number>
-   </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1295</width>
+    <height>817</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="homeRootLayout" stretch="0,2000">
    <item>
-    <widget class="QLabel" name="titleLabel">
-     <property name="text">
-      <string>首页（占位）</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLabel" name="descLabel">
-     <property name="text">
-      <string>用于承载首页内容，后续可替换为概览卡片、快捷入口和运行状态。</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="homeHeaderLayout">
+     <item>
+      <layout class="QVBoxLayout" name="homeProjectSectionLayout">
+       <item>
+        <layout class="QHBoxLayout" name="homeCurrentProjectLayout">
+         <item>
+          <widget class="QLabel" name="homeCurrentProjectTitleLabel">
+           <property name="font">
+            <font>
+             <pointsize>15</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>当前选中项目：</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignLeft|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="homeCurrentProjectValueLabel">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>未选择项目</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="homeCurrentProjectSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="homeProjectActionsLayout" stretch="5,1">
+         <item>
+          <widget class="QComboBox" name="homeProjectSelectorCombo">
+           <property name="minimumSize">
+            <size>
+             <width>600</width>
+             <height>40</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="homeImportProjectButton">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>35</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>导入项目</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <spacer name="homeHeaderSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </item>
    <item>
     <widget class="QFrame" name="panelFrame">
@@ -49,25 +112,38 @@
      <property name="frameShadow">
       <enum>QFrame::Plain</enum>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayoutPanel">
+     <layout class="QVBoxLayout" name="homeOverviewPanelLayout" stretch="0,200">
       <item>
-       <spacer name="verticalSpacerPanel">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
+       <widget class="QLabel" name="homeOverviewTitleLabel">
+        <property name="font">
+         <font>
+          <pointsize>20</pointsize>
+         </font>
         </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
+        <property name="text">
+         <string>项目概览</string>
         </property>
-       </spacer>
+       </widget>
+      </item>
+      <item>
+       <widget class="QQuickWidget" name="homeOverviewQuickView">
+        <property name="resizeMode">
+         <enum>QQuickWidget::SizeRootObjectToView</enum>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QQuickWidget</class>
+   <extends>QWidget</extends>
+   <header location="global">QtQuickWidgets/QQuickWidget</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

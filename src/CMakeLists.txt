@@ -49,6 +49,7 @@ target_link_libraries(AclassTool PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
     Qt${QT_VERSION_MAJOR}::WebSockets
+    Qt${QT_VERSION_MAJOR}::QuickWidgets
 )
 
 target_include_directories(AclassTool PRIVATE

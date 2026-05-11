@@ -6,7 +6,6 @@ LogPage::LogPage(QWidget *parent)
     , ui(new Ui::LogPage)
 {
     ui->setupUi(this);
-    setTitleLabel(ui->titleLabel);
     applyDefaultPlaceholderStyle(ThemeManager::palette(ThemeKind::IndustrialBlue));
 }
 
@@ -14,3 +13,5 @@ LogPage::~LogPage()
 {
     delete ui;
 }
+
+

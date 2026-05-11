@@ -6,7 +6,6 @@ ProtocolEditorPage::ProtocolEditorPage(QWidget *parent)
     , ui(new Ui::ProtocolEditorPage)
 {
     ui->setupUi(this);
-    setTitleLabel(ui->titleLabel);
     applyDefaultPlaceholderStyle(ThemeManager::palette(ThemeKind::IndustrialBlue));
 }
 
@@ -14,3 +13,5 @@ ProtocolEditorPage::~ProtocolEditorPage()
 {
     delete ui;
 }
+
+

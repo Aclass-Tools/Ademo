@@ -7,7 +7,7 @@ include(AclassProjectOptions)
 include(AclassPlatform)
 aclass_setup_project_options()
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network WebSockets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network WebSockets QuickWidgets)
 qt_standard_project_setup()
 
 add_subdirectory(src)

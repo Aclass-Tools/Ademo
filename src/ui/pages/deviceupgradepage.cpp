@@ -1,4 +1,4 @@
-#include "deviceupgradepage.h"
+﻿#include "deviceupgradepage.h"
 #include "ui_deviceupgrade.h"
 
 DeviceUpgradePage::DeviceUpgradePage(QWidget *parent)
@@ -6,7 +6,6 @@ DeviceUpgradePage::DeviceUpgradePage(QWidget *parent)
     , ui(new Ui::DeviceUpgradePage)
 {
     ui->setupUi(this);
-    setTitleLabel(ui->titleLabel);
     applyDefaultPlaceholderStyle(ThemeManager::palette(ThemeKind::IndustrialBlue));
 }
 
@@ -14,3 +13,5 @@ DeviceUpgradePage::~DeviceUpgradePage()
 {
     delete ui;
 }
+
+

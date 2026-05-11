@@ -1,4 +1,4 @@
-#include "protocolexportpage.h"
+﻿#include "protocolexportpage.h"
 #include "ui_protocolexport.h"
 
 ProtocolExportPage::ProtocolExportPage(QWidget *parent)
@@ -6,7 +6,6 @@ ProtocolExportPage::ProtocolExportPage(QWidget *parent)
     , ui(new Ui::ProtocolExportPage)
 {
     ui->setupUi(this);
-    setTitleLabel(ui->titleLabel);
     applyDefaultPlaceholderStyle(ThemeManager::palette(ThemeKind::IndustrialBlue));
 }
 
@@ -14,3 +13,5 @@ ProtocolExportPage::~ProtocolExportPage()
 {
     delete ui;
 }
+
+
