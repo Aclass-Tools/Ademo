@@ -1,16 +1,16 @@
-﻿#include "devicemanagerpage.h"
-#include "ui_devicemanagerpage.h"
+#include "protocolexportpage.h"
+#include "ui_protocolexport.h"
 
-DeviceManagerPage::DeviceManagerPage(QWidget *parent)
+ProtocolExportPage::ProtocolExportPage(QWidget *parent)
     : PlaceholderPageBase(parent)
-    , ui(new Ui::DeviceManagerPage)
+    , ui(new Ui::ProtocolExportPage)
 {
     ui->setupUi(this);
     setTitleLabel(ui->titleLabel);
     applyDefaultPlaceholderStyle(ThemeManager::palette(ThemeKind::IndustrialBlue));
 }
 
-DeviceManagerPage::~DeviceManagerPage()
+ProtocolExportPage::~ProtocolExportPage()
 {
     delete ui;
 }

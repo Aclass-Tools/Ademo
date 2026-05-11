@@ -8,16 +8,16 @@ ThemePalette ThemeManager::palette(ThemeKind kind)
             "#1b1f24", "#242a32", "#3a4350", "#20262d", "#3a4350",
             "#e6edf3", "#9fb1c6", "#5fa8ff", "#ff8e8e",
             "#242a32", "#3a4350", "#1f242b", "#3a4350",
-            "#2b313a", "#4a5568", "#d6e2f2", "#344055", "#5f7aa3", "#40506a", "#30548f", "#4f8bd7",
-            "#9bc9ff", "#dbe8ff"
+            "#2b313a", "#4a5568", "#d6e2f2", "#344055", "#5f7aa3", "#40506a", "#2b466f", "#4f8bd7",
+            "#ffffff", "#dbe8ff"
         };
     case ThemeKind::IndustrialBlue:
         return ThemePalette{
             "#eef5fb", "#dff0fb", "#9ec3dd", "#ffffff", "#c9d8e6",
             "#1f2d3d", "#5b6b7c", "#0e7fbf", "#d64b4b",
             "#f8fbff", "#c9d8e6", "#ffffff", "#d8e4ef",
-            "#f2f8fe", "#b7ccdd", "#2f4255", "#e6f2fb", "#8fb0c8", "#d5e8f7", "#8eb2cd", "#eaf4fb",
-            "#0e7fbf", "#215f8f"
+            "#f2f8fe", "#b7ccdd", "#2f4255", "#e6f2fb", "#8fb0c8", "#d5e8f7", "#1f6fa8", "#155a88",
+            "#ffffff", "#ffffff"
         };
     case ThemeKind::Light:
     default:
@@ -25,8 +25,8 @@ ThemePalette ThemeManager::palette(ThemeKind kind)
             "#f7f9fc", "#ffffff", "#d9dee7", "#ffffff", "#d9dee7",
             "#222b3a", "#5c6a7d", "#3a78c7", "#d94444",
             "#ffffff", "#d9dee7", "#ffffff", "#d9dee7",
-            "#ffffff", "#c7cfdb", "#2a3547", "#f0f4fa", "#9db0ca", "#e7eef9", "#a8bad3", "#e7eef9",
-            "#3a78c7", "#394b63"
+            "#ffffff", "#c7cfdb", "#2a3547", "#f0f4fa", "#9db0ca", "#e7eef9", "#355c8a", "#274869",
+            "#ffffff", "#ffffff"
         };
     }
 }
@@ -63,10 +63,10 @@ QString ThemeManager::navButtonStyle(const ThemePalette &p)
         "QToolButton {"
         "  border: 1px solid %1;"
         "  border-radius: 3px;"
-        "  padding: 4px 6px;"
+        "  padding: 5px 8px;"
         "  background: %2;"
         "  color: %3;"
-        "  font-size: 13px;"
+        "  font-size: 15px;"
         "  font-weight: 500;"
         "}"
         "QToolButton:hover {"

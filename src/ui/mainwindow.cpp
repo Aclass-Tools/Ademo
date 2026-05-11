@@ -12,7 +12,9 @@
 #include "network/websocketclient.h"
 #include "ui/pages/homepage.h"
 #include "ui/pages/protocoleditorpage.h"
-#include "ui/pages/devicemanagerpage.h"
+#include "ui/pages/protocoldebugpage.h"
+#include "ui/pages/protocolexportpage.h"
+#include "ui/pages/deviceupgradepage.h"
 #include "ui/pages/terminalpage.h"
 #include "ui/pages/logpage.h"
 #include "ui/pages/pluginpage.h"
@@ -41,7 +43,9 @@ MainWindow::MainWindow(QWidget *parent)
     // 解耦页面实例：每个页面都有独立 .ui 与类。
     m_homePage = new HomePage(this);
     m_protocolEditorPage = new ProtocolEditorPage(this);
-    m_deviceManagerPage = new DeviceManagerPage(this);
+    m_protocolDebugPage = new ProtocolDebugPage(this);
+    m_protocolExportPage = new ProtocolExportPage(this);
+    m_deviceUpgradePage = new DeviceUpgradePage(this);
     m_terminalPage = new TerminalPage(this);
     m_logPage = new LogPage(this);
     m_pluginPage = new PluginPage(this);
@@ -49,7 +53,9 @@ MainWindow::MainWindow(QWidget *parent)
     // 在装配层设置占位标题，保持页面类通用。
     m_homePage->setTitle(QStringLiteral("首页（占位）"));
     m_protocolEditorPage->setTitle(QStringLiteral("协议编辑（占位）"));
-    m_deviceManagerPage->setTitle(QStringLiteral("设备管理（占位）"));
+    m_protocolDebugPage->setTitle(QStringLiteral("协议调试（占位）"));
+    m_protocolExportPage->setTitle(QStringLiteral("协议导出（占位）"));
+    m_deviceUpgradePage->setTitle(QStringLiteral("设备升级（占位）"));
     m_terminalPage->setTitle(QStringLiteral("终端（占位）"));
     m_logPage->setTitle(QStringLiteral("日志（占位）"));
     m_pluginPage->setTitle(QStringLiteral("外挂（占位）"));
@@ -57,7 +63,9 @@ MainWindow::MainWindow(QWidget *parent)
     // 将页面注入 mainwindow.ui 中预留的容器布局。
     ui->verticalLayoutHome->addWidget(m_homePage);
     ui->verticalLayoutProtocol->addWidget(m_protocolEditorPage);
-    ui->verticalLayoutDevice->addWidget(m_deviceManagerPage);
+    ui->verticalLayoutProtocolDebug->addWidget(m_protocolDebugPage);
+    ui->verticalLayoutProtocolExport->addWidget(m_protocolExportPage);
+    ui->verticalLayoutDeviceUpgrade->addWidget(m_deviceUpgradePage);
     ui->verticalLayoutTerminal->addWidget(m_terminalPage);
     ui->verticalLayoutLog->addWidget(m_logPage);
     ui->verticalLayoutPlugin->addWidget(m_pluginPage);
@@ -155,7 +163,7 @@ void MainWindow::setupConnections()
         ui->btnTerminalDebug->setChecked(false);
         ui->btnLogExport->setChecked(false);
         ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageDeviceManager);
+        ui->mainPageStack->setCurrentWidget(ui->pageProtocolExport);
     });
     connect(ui->btnProtocolDebug, &QToolButton::clicked, this, [this]() {
         ui->btnToolHome->setChecked(false);
@@ -166,7 +174,7 @@ void MainWindow::setupConnections()
         ui->btnTerminalDebug->setChecked(false);
         ui->btnLogExport->setChecked(false);
         ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageProtocolEditor);
+        ui->mainPageStack->setCurrentWidget(ui->pageProtocolDebug);
     });
     connect(ui->btnDeviceUpgrade, &QToolButton::clicked, this, [this]() {
         ui->btnToolHome->setChecked(false);
@@ -177,7 +185,7 @@ void MainWindow::setupConnections()
         ui->btnTerminalDebug->setChecked(false);
         ui->btnLogExport->setChecked(false);
         ui->btnPluginScript->setChecked(false);
-        ui->mainPageStack->setCurrentWidget(ui->pageDeviceManager);
+        ui->mainPageStack->setCurrentWidget(ui->pageDeviceUpgrade);
     });
     connect(ui->btnTerminalDebug, &QToolButton::clicked, this, [this]() {
         ui->btnToolHome->setChecked(false);

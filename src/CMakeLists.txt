@@ -1,4 +1,4 @@
-set(APP_SOURCES
+﻿set(APP_SOURCES
     main.cpp
     app_icon.rc
     network/apiclient.cpp
@@ -17,8 +17,12 @@ set(APP_SOURCES
     ui/pages/homepage.h
     ui/pages/protocoleditorpage.cpp
     ui/pages/protocoleditorpage.h
-    ui/pages/devicemanagerpage.cpp
-    ui/pages/devicemanagerpage.h
+    ui/pages/protocoldebugpage.cpp
+    ui/pages/protocoldebugpage.h
+    ui/pages/protocolexportpage.cpp
+    ui/pages/protocolexportpage.h
+    ui/pages/deviceupgradepage.cpp
+    ui/pages/deviceupgradepage.h
     ui/pages/terminalpage.cpp
     ui/pages/terminalpage.h
     ui/pages/logpage.cpp
@@ -28,7 +32,9 @@ set(APP_SOURCES
     ../ui/mainwindow.ui
     ../ui/homepage.ui
     ../ui/protocoleditorpage.ui
-    ../ui/devicemanagerpage.ui
+    ../ui/protocoldebugpage.ui
+    ../ui/protocolexport.ui
+    ../ui/deviceupgrade.ui
     ../ui/terminalpage.ui
     ../ui/logpage.ui
     ../ui/pluginpage.ui

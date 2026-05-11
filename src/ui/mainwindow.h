@@ -21,7 +21,9 @@ class QLabel;
 class WebSocketClient;
 class HomePage;
 class ProtocolEditorPage;
-class DeviceManagerPage;
+class ProtocolDebugPage;
+class ProtocolExportPage;
+class DeviceUpgradePage;
 class TerminalPage;
 class LogPage;
 class PluginPage;
@@ -58,7 +60,9 @@ private:
 
     HomePage *m_homePage = nullptr;
     ProtocolEditorPage *m_protocolEditorPage = nullptr;
-    DeviceManagerPage *m_deviceManagerPage = nullptr;
+    ProtocolDebugPage *m_protocolDebugPage = nullptr;
+    ProtocolExportPage *m_protocolExportPage = nullptr;
+    DeviceUpgradePage *m_deviceUpgradePage = nullptr;
     TerminalPage *m_terminalPage = nullptr;
     LogPage *m_logPage = nullptr;
     PluginPage *m_pluginPage = nullptr;

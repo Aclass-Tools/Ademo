@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DeviceManagerPage</class>
- <widget class="QWidget" name="DeviceManagerPage">
+ <class>DeviceUpgradePage</class>
+ <widget class="QWidget" name="DeviceUpgradePage">
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
     <number>12</number>
@@ -21,7 +21,7 @@
    <item>
     <widget class="QLabel" name="titleLabel">
      <property name="text">
-      <string>设备管理（占位）</string>
+      <string>设备升级（占位）</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -31,7 +31,7 @@
    <item>
     <widget class="QLabel" name="descLabel">
      <property name="text">
-      <string>用于承载设备连接与升级内容，后续可替换为设备列表、状态与操作面板。</string>
+      <string>用于承载设备升级任务、版本信息和执行日志，后续可替换为升级流程面板。</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignLeft|Qt::AlignVCenter</set>
