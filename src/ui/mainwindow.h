@@ -46,13 +46,13 @@ public:
     ~MainWindow();
 
 private:
-    // 统一创建并挂载页面实例，同时组装导航映射、按钮初始化与导航点击绑定。
+    // 创建各业务页并挂载到 mainwindow.ui 预留布局，同时初始化导航按钮行为。
     void setupPages();
-    // 统一处理底栏常驻显示（首次创建 + 基于成员变量刷新内容）。
+    // 统一处理底栏常驻信息（首次创建标签 + 根据成员变量刷新文本）。
     void setupStatusBarContent();
-    // 切换并选中指定页面。
+    // 切换主区域当前页面（仅负责 stackedWidget 切换）。
     void switchToPage(QWidget *page);
-    // 绑定通信层信号：处理版本/错误/连接提示，
+    // 绑定通信层信号：处理版本回调、错误提示、连接提示与项目名同步。
     void setupCommunicationBindings();
     // 用于显示临时通知，不承载长期状态。
     void showStatus(const QString &message);
@@ -77,10 +77,12 @@ private:
 
     QButtonGroup *m_navButtonGroup = nullptr;
 
-    QLabel *m_connectionLabel = nullptr;
-    QLabel *m_userLabel = nullptr;
-    QLabel *m_configVersionLabel = nullptr;
+    // 状态栏常驻三段信息。
+    QLabel *m_connectionLabel = nullptr;    // 当前项目
+    QLabel *m_userLabel = nullptr;          // 当前用户
+    QLabel *m_configVersionLabel = nullptr; // 配置版本
 
+    // 状态栏文案源：所有常驻显示都从这些成员变量渲染。
     QString m_currentProjectName;
     QString m_currentUserName = QStringLiteral("engineer");
     QString m_currentConfigVersion;

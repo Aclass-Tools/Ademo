@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>HomePage</class>
  <widget class="QWidget" name="HomePage">
@@ -9,6 +9,9 @@
     <width>1295</width>
     <height>817</height>
    </rect>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
   </property>
   <layout class="QVBoxLayout" name="homeRootLayout" stretch="0,2000">
    <item>
@@ -29,7 +32,7 @@
             <string>当前选中项目：</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignLeft|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -46,9 +49,16 @@
           </widget>
          </item>
          <item>
+          <widget class="QPushButton" name="homeProjectLoadRefreshButton">
+           <property name="text">
+            <string>刷新</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <spacer name="homeCurrentProjectSpacer">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -92,7 +102,7 @@
      <item>
       <spacer name="homeHeaderSpacer">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -107,10 +117,10 @@
    <item>
     <widget class="QFrame" name="panelFrame">
      <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
+      <enum>QFrame::Shape::StyledPanel</enum>
      </property>
      <property name="frameShadow">
-      <enum>QFrame::Plain</enum>
+      <enum>QFrame::Shadow::Plain</enum>
      </property>
      <layout class="QVBoxLayout" name="homeOverviewPanelLayout" stretch="0,200">
       <item>
@@ -120,6 +130,9 @@
           <pointsize>20</pointsize>
          </font>
         </property>
+        <property name="styleSheet">
+         <string notr="true"/>
+        </property>
         <property name="text">
          <string>项目概览</string>
         </property>
@@ -127,8 +140,11 @@
       </item>
       <item>
        <widget class="QQuickWidget" name="homeOverviewQuickView">
+        <property name="styleSheet">
+         <string notr="true"/>
+        </property>
         <property name="resizeMode">
-         <enum>QQuickWidget::SizeRootObjectToView</enum>
+         <enum>QQuickWidget::ResizeMode::SizeRootObjectToView</enum>
         </property>
        </widget>
       </item>

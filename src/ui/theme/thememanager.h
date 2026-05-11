@@ -64,6 +64,9 @@ public:
     // 顶部导航按钮 QSS。
     static QString navButtonStyle(const ThemePalette &p);
 
+    // 通用页面内容区 QSS（用于非占位页，如 HomePage）。
+    static QString contentPageStyle(const ThemePalette &p);
+
     // 通用占位页 QSS。
     static QString placeholderPageStyle(const ThemePalette &p);
 };

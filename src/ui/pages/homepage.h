@@ -23,6 +23,8 @@ public:
 
 signals:
     void currentProjectChanged(const QString &projectName);
+    // 用户点击“刷新”后发出：请求上层重新拉取首页所需 JSON。
+    void jsonRefreshRequested();
 
 private:
     void refreshCurrentProjectLabel();

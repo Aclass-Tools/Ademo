@@ -105,11 +105,60 @@ QString ThemeManager::navButtonStyle(const ThemePalette &p)
     );
 }
 
+QString ThemeManager::contentPageStyle(const ThemePalette &p)
+{
+    return QString(
+        "QWidget {"
+        "  background: %1;"
+        "  color: %2;"
+        "}"
+        "QFrame#panelFrame {"
+        "  background: %3;"
+        "  border: 1px solid %4;"
+        "  border-radius: 2px;"
+        "}"
+        "QLabel {"
+        "  color: %2;"
+        "}"
+        "QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateTimeEdit {"
+        "  background: %3;"
+        "  color: %2;"
+        "  border: 1px solid %4;"
+        "  border-radius: 2px;"
+        "}"
+        "QPushButton {"
+        "  background: %5;"
+        "  color: %2;"
+        "  border: 1px solid %6;"
+        "  border-radius: 3px;"
+        "  padding: 4px 10px;"
+        "}"
+        "QPushButton:hover {"
+        "  background: %7;"
+        "  border: 1px solid %8;"
+        "}"
+        "QPushButton:pressed {"
+        "  background: %9;"
+        "}"
+    ).arg(
+        p.stackBg,
+        p.textPrimary,
+        p.panelBg,
+        p.panelBorder,
+        p.navButtonBg,
+        p.navButtonBorder,
+        p.navButtonHoverBg,
+        p.navButtonHoverBorder,
+        p.navButtonPressedBg
+    );
+}
+
 QString ThemeManager::placeholderPageStyle(const ThemePalette &p)
 {
     return QString(
         "QWidget {"
         "  background: %1;"
+        "  color: %4;"
         "}"
         "#panelFrame {"
         "  background: %2;"
@@ -118,19 +167,40 @@ QString ThemeManager::placeholderPageStyle(const ThemePalette &p)
         "}"
         "QLabel {"
         "  color: %4;"
-        "  font-size: 18px;"
-        "  font-weight: 600;"
         "}"
         "QLabel#descLabel {"
         "  color: %5;"
-        "  font-size: 13px;"
-        "  font-weight: 400;"
+        "}"
+        "QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateTimeEdit {"
+        "  background: %2;"
+        "  color: %4;"
+        "  border: 1px solid %3;"
+        "  border-radius: 2px;"
+        "}"
+        "QPushButton {"
+        "  background: %6;"
+        "  color: %4;"
+        "  border: 1px solid %7;"
+        "  border-radius: 3px;"
+        "  padding: 4px 10px;"
+        "}"
+        "QPushButton:hover {"
+        "  background: %8;"
+        "  border: 1px solid %9;"
+        "}"
+        "QPushButton:pressed {"
+        "  background: %10;"
         "}"
     ).arg(
         p.stackBg,
         p.panelBg,
         p.panelBorder,
         p.placeholderTitle,
-        p.textSecondary
+        p.textSecondary,
+        p.navButtonBg,
+        p.navButtonBorder,
+        p.navButtonHoverBg,
+        p.navButtonHoverBorder,
+        p.navButtonPressedBg
     );
 }

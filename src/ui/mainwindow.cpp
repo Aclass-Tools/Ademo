@@ -44,11 +44,13 @@ MainWindow::MainWindow(QWidget *parent)
     m_apiClient = new ApiClient(this);
     m_wsClient = new WebSocketClient(this);
 
+    // 先装配页面与导航，再做状态栏/通信绑定，保证后续回调对象都已就绪。
     setupPages();
 
     // 主窗体基础样式由主题管理器统一生成。
     setStyleSheet(ThemeManager::mainWindowStyle(m_palette));
 
+    // 初始化状态栏文案源，统一通过 setupStatusBarContent() 渲染到底栏。
     m_currentProjectName = m_homePage ? m_homePage->currentProjectName() : QString();
     m_currentConfigVersion.clear();
     setupStatusBarContent();
@@ -58,6 +60,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 启动探针。
     m_apiClient->getVersion();
+    // 首页首次创建后，主动拉取一次首页 JSON。
+    m_apiClient->getPoints();
     m_wsClient->connectToServer();
 }
 
@@ -77,6 +81,11 @@ void MainWindow::setupPages()
     // 统一导航按钮样式，避免每个按钮重复生成样式字符串。
     const QString navStyle = ThemeManager::navButtonStyle(m_palette);
 
+    // 统一页面装配器：
+    // - 创建页面对象
+    // - 挂到预留布局
+    // - 初始化对应导航按钮
+    // - 绑定点击切页
     auto createAttachAndRegister = [this, navStyle](auto *&member, auto *layout, QToolButton *navButton, QWidget *stackPage) {
         using PageT = std::remove_pointer_t<std::remove_reference_t<decltype(member)>>;
         member = new PageT(this);
@@ -124,16 +133,19 @@ void MainWindow::setupStatusBarContent()
         statusBar()->addPermanentWidget(m_configVersionLabel);
     }
 
+    // 当前项目：空值回落到“未选择项目”。
     const QString shownProject = m_currentProjectName.trimmed().isEmpty()
         ? QStringLiteral("未选择项目")
         : m_currentProjectName.trimmed();
     m_connectionLabel->setText(QStringLiteral("当前项目: %1").arg(shownProject));
 
+    // 当前用户：空值回落到“--”。
     const QString shownUser = m_currentUserName.trimmed().isEmpty()
         ? QStringLiteral("--")
         : m_currentUserName.trimmed();
     m_userLabel->setText(QStringLiteral("User: %1").arg(shownUser));
 
+    // 配置版本：空值回落到“--”。
     const QString shownVersion = m_currentConfigVersion.trimmed().isEmpty()
         ? QStringLiteral("--")
         : m_currentConfigVersion.trimmed();
@@ -159,8 +171,7 @@ void MainWindow::setupCommunicationBindings()
     // 3) 保留消息分发占位，后续由页面或消息总线承接业务逻辑。
 
     // ApiClient::versionReceived:
-    // 启动后会请求配置版本。收到结果后更新状态栏右侧版本标识，
-    // 让用户可直观看到当前后端配置版本是否已成功返回。
+    // 启动后会请求配置版本。收到后写入成员变量，再统一刷新底栏。
     connect(m_apiClient, &ApiClient::versionReceived, this, [this](const QString &version) {
         m_currentConfigVersion = version;
         setupStatusBarContent();
@@ -197,11 +208,17 @@ void MainWindow::setupCommunicationBindings()
         showStatus(QStringLiteral("WebSocket error: %1").arg(message));
     });
 
-    // 首页项目选择变化 -> 底栏“当前项目”。
+    // 首页项目选择变化 -> 写入成员变量并刷新底栏“当前项目”。
     if (m_homePage) {
         connect(m_homePage, &HomePage::currentProjectChanged, this, [this](const QString &projectName) {
             m_currentProjectName = projectName;
             setupStatusBarContent();
+        });
+
+        // 首页点击“刷新”时，触发一次后端 JSON 拉取。
+        connect(m_homePage, &HomePage::jsonRefreshRequested, this, [this]() {
+            m_apiClient->getPoints();
+            showStatus(QStringLiteral("Home JSON refresh requested"));
         });
     }
 }
