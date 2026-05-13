@@ -10,6 +10,7 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QStringList>
 
 class JsonPreviewParser
 {
@@ -38,6 +39,12 @@ public:
     // - 若存在 project_version，则返回 "name (version)"
     // - 提取失败时返回空字符串
     static QString extractProjectName(const QByteArray &payload);
+
+    // 从约定结构的 JSON 中提取全部项目名（去重后按出现顺序返回）：
+    // - 遍历 instances[]，读取 project_name / project_version
+    // - 若存在 project_version，则返回 "name (version)"
+    // - 仅返回非空项目名；重复项仅保留第一次出现
+    static QStringList extractProjectNames(const QByteArray &payload);
 
     // 人类可读的根类型文本。
     static QString rootTypeName(RootType type);

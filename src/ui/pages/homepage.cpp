@@ -5,10 +5,6 @@
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonParseError>
 #include <QPushButton>
 
 HomePage::HomePage(QWidget *parent)
@@ -23,18 +19,19 @@ HomePage::HomePage(QWidget *parent)
     ui->homeProjectSelectorCombo->addItem(QStringLiteral("未选择项目"));
     ui->homeProjectSelectorCombo->setCurrentIndex(0);
 
-    // “刷新”按钮：仅通知上层执行刷新流程（如联网拉取），不改当前项目显示。
+    // “刷新”按钮：从本地 JSON 重新加载项目名，并回填下拉框。
+    // 该按钮不负责右侧 JSON 预览展示，预览由“导入项目”按钮负责。
     connect(ui->homeProjectLoadRefreshButton,
         &QPushButton::clicked, this, &HomePage::onLoadRefreshButtonClicked);
 
-    // “导入项目”按钮：读取本地 JSON、填充下拉框，并更新当前项目显示。
+    // “导入项目”按钮：读取本地 JSON，显示格式化文本，并同步当前项目名。
     connect(ui->homeImportProjectButton,
         &QPushButton::clicked, this, &HomePage::onImportProjectButtonClicked);
 
-    // 页面初始化时主动执行一次“导入项目逻辑”：
+    // 页面初始化时主动执行一次“刷新项目内容”：
     // - 从本地固定目录读取 JSON
     // - 在右侧文本框展示格式化 JSON
-    onImportProjectButtonClicked();
+    onLoadRefreshButtonClicked();
 }
 
 HomePage::~HomePage()
@@ -44,29 +41,57 @@ HomePage::~HomePage()
 
 void HomePage::onLoadRefreshButtonClicked()
 {
-    // “刷新”按钮也执行一次本地 JSON 读取与解析流程，
-    // 与“导入项目”保持一致，避免两套逻辑分叉。
-    onImportProjectButtonClicked();
-}
-
-void HomePage::onImportProjectButtonClicked()
-{
-    // “导入项目”按钮点击后：仅在右侧文本框展示解析后的 JSON 内容。
+    // 步骤 1：读取本地 JSON 文件内容。
     const QString filePath = resolveProjectJsonPath();
     QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) 
-    {
-        ui->homeOverviewplainTextEdit->setPlainText(
-            QStringLiteral("读取失败：无法打开文件\n%1").arg(filePath));
+    if (!file.open(QIODevice::ReadOnly)) {
+        // 打开失败时清空缓存，避免“导入项目”继续使用旧数据。
+        m_loadedJsonPayload.clear();
+        m_hasLoadedJson = false;
+        // 不改动当前下拉框内容，仅向上层发出刷新事件占位。
         emit jsonRefreshRequested();
         return;
     }
 
-    // 读取一次完整字节流，仅用于预览解析与展示。
-    const QByteArray payload = file.readAll();
+    // 步骤 2：通过模型层解析器提取“项目显示名列表”。
+    // 约定解析逻辑在 JsonPreviewParser 内部，不在页面层写 QJson 细节。
+    m_loadedJsonPayload = file.readAll();
+    m_hasLoadedJson = true;
+    QStringList names = JsonPreviewParser::extractProjectNames(m_loadedJsonPayload);
+
+    // 步骤 3：在首位补一个固定占位项，允许用户回到“未选择项目”状态。
+    const QString kUnselectedProject = QStringLiteral("未选择项目");
+    if (!names.contains(kUnselectedProject)) {
+        names.prepend(kUnselectedProject);
+    }
+
+    // 步骤 4：刷新下拉框数据并尽量恢复用户旧选择。
+    // 刷新期间屏蔽信号，避免 clear/addItems/setCurrentIndex 触发多次联动。
+    const QString previous = ui->homeProjectSelectorCombo->currentText();
+    ui->homeProjectSelectorCombo->blockSignals(true);
+    ui->homeProjectSelectorCombo->clear();
+    ui->homeProjectSelectorCombo->addItems(names);
+
+    const int restoreIndex = ui->homeProjectSelectorCombo->findText(previous);
+    ui->homeProjectSelectorCombo->setCurrentIndex(restoreIndex >= 0 ? restoreIndex : 0);
+    ui->homeProjectSelectorCombo->blockSignals(false);
+
+    // 步骤 5：通知上层“已完成一次本地刷新动作”。
+    emit jsonRefreshRequested();
+}
+
+void HomePage::onImportProjectButtonClicked()
+{
+    // “导入项目”按钮点击后：只使用“刷新”阶段加载的内存 JSON，不直接读文件。
+    if (!m_hasLoadedJson) {
+        ui->homeOverviewplainTextEdit->setPlainText(
+            QStringLiteral("尚未加载项目数据，请先点击“刷新”按钮。"));
+        emit jsonRefreshRequested();
+        return;
+    }
 
     // 右侧文本框显示“解析后的 JSON（格式化后）”。
-    const JsonPreviewParser::Result preview = JsonPreviewParser::parse(payload);
+    const JsonPreviewParser::Result preview = JsonPreviewParser::parse(m_loadedJsonPayload);
     if (preview.ok) {
         ui->homeOverviewplainTextEdit->setPlainText(preview.formattedText);
     } else {
@@ -77,7 +102,7 @@ void HomePage::onImportProjectButtonClicked()
     }
 
     // 从导入的 JSON 中提取当前项目名，并同步给上层 MainWindow 维护状态栏。
-    const QString projectName = extractProjectNameFromPayload(payload);
+    const QString projectName = JsonPreviewParser::extractProjectName(m_loadedJsonPayload);
     ui->homeCurrentProjectValueLabel->setText(
         projectName.isEmpty() ? QStringLiteral("未选择项目") : projectName);
     emit currentProjectChanged(projectName);

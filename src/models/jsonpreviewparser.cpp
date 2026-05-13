@@ -85,6 +85,40 @@ QString JsonPreviewParser::extractProjectName(const QByteArray &payload)
     return QString();
 }
 
+QStringList JsonPreviewParser::extractProjectNames(const QByteArray &payload)
+{
+    QStringList names;
+
+    QJsonParseError error;
+    const QJsonDocument doc = QJsonDocument::fromJson(payload, &error);
+    if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+        return names;
+    }
+
+    const QJsonArray instances = doc.object().value(QStringLiteral("instances")).toArray();
+    for (const QJsonValue &item : instances) {
+        if (!item.isObject()) {
+            continue;
+        }
+
+        const QJsonObject obj = item.toObject();
+        const QString projectName = obj.value(QStringLiteral("project_name")).toString().trimmed();
+        const QString projectVersion = obj.value(QStringLiteral("project_version")).toString().trimmed();
+        if (projectName.isEmpty()) {
+            continue;
+        }
+
+        const QString displayText = projectVersion.isEmpty()
+            ? projectName
+            : QStringLiteral("%1 (%2)").arg(projectName, projectVersion);
+        if (!names.contains(displayText)) {
+            names.append(displayText);
+        }
+    }
+
+    return names;
+}
+
 QString JsonPreviewParser::rootTypeName(RootType type)
 {
     // RootType 到可读字符串的映射。
