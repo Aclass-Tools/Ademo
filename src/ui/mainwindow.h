@@ -50,8 +50,26 @@ public:
     ~MainWindow();
 
 private:
+    enum class PageKey {
+        Home,
+        ProtocolEditor,
+        ProtocolDebug,
+        ProtocolExport,
+        DeviceUpgrade,
+        Terminal,
+        Log,
+        Plugin
+    };
     // 初始化导航按钮行为。业务页改为“首次点击时创建（懒加载）”。
     void setupPages();
+    // 根据页面键打开（创建/激活）对应标签页。
+    void openPageTab(PageKey pageKey);
+    // 标签关闭时释放页面资源，并清理页面指针。
+    void closeTabByWidget(QWidget *tabWidget);
+    // 首页导入项目成功后，关闭除首页外的所有标签页，回收页面资源。
+    void closeAllNonHomeTabs();
+    // 切换标签后触发页面激活回调。
+    void onCurrentTabChanged(int index);
     // 首次访问时创建对应页面，并返回已创建实例。
     HomePage *ensureHomePage();
     ProtocolEditorPage *ensureProtocolEditorPage();

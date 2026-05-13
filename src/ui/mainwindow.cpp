@@ -27,6 +27,7 @@
 #include <QButtonGroup>
 #include <QLabel>
 #include <QStatusBar>
+#include <QTabWidget>
 #include <QToolButton>
 #include <QWidget>
 
@@ -55,8 +56,21 @@ MainWindow::MainWindow(QWidget *parent)
     // 初始化状态栏显示。
     setupStatusBarContent();
     setupHomePageBindings();
+    ui->mainTabWidget->setTabsClosable(true);
+    ui->mainTabWidget->setMovable(true);
+    connect(ui->mainTabWidget, &QTabWidget::tabCloseRequested, this, [this](int index) {
+        QWidget *tabWidget = ui->mainTabWidget->widget(index);
+        if (!tabWidget) {
+            return;
+        }
+        if (tabWidget == ui->pageHome) {
+            return;
+        }
+        closeTabByWidget(tabWidget);
+    });
+    connect(ui->mainTabWidget, &QTabWidget::currentChanged, this, &MainWindow::onCurrentTabChanged);
     ui->btnToolHome->setChecked(true);
-    switchToPage(ui->pageHome);
+    openPageTab(PageKey::Home);
 
     // 当前阶段主界面不绑定通信层回调；首页数据读取由 HomePage 内部完成。
 }
@@ -96,42 +110,36 @@ void MainWindow::setupPages()
     initNavButton(ui->btnLogExport);
     initNavButton(ui->btnPluginScript);
 
-    // 导航点击后首次创建页面，再切换。
+    // 启动时先隐藏全部标签页，后续由用户点击按钮按需打开。
+    while (ui->mainTabWidget->count() > 0) {
+        ui->mainTabWidget->removeTab(0);
+    }
+
+    // 导航点击后首次创建页面，再打开/激活对应标签页。
     connect(ui->btnToolHome, &QToolButton::clicked, this, [this]() {
-        ensureHomePage();
-        switchToPage(ui->pageHome);
+        openPageTab(PageKey::Home);
     });
     connect(ui->btnProtocolEdit, &QToolButton::clicked, this, [this]() {
-        ensureProtocolEditorPage();
-        switchToPage(ui->pageProtocolEditor);
+        openPageTab(PageKey::ProtocolEditor);
     });
     connect(ui->btnProtocolDebug, &QToolButton::clicked, this, [this]() {
-        ensureProtocolDebugPage();
-        switchToPage(ui->pageProtocolDebug);
+        openPageTab(PageKey::ProtocolDebug);
     });
     connect(ui->btnDeviceConnect, &QToolButton::clicked, this, [this]() {
-        ensureProtocolExportPage();
-        switchToPage(ui->pageProtocolExport);
+        openPageTab(PageKey::ProtocolExport);
     });
     connect(ui->btnDeviceUpgrade, &QToolButton::clicked, this, [this]() {
-        ensureDeviceUpgradePage();
-        switchToPage(ui->pageDeviceUpgrade);
+        openPageTab(PageKey::DeviceUpgrade);
     });
     connect(ui->btnTerminalDebug, &QToolButton::clicked, this, [this]() {
-        ensureTerminalPage();
-        switchToPage(ui->pageTerminal);
+        openPageTab(PageKey::Terminal);
     });
     connect(ui->btnLogExport, &QToolButton::clicked, this, [this]() {
-        ensureLogPage();
-        switchToPage(ui->pageLog);
+        openPageTab(PageKey::Log);
     });
     connect(ui->btnPluginScript, &QToolButton::clicked, this, [this]() {
-        ensurePluginPage();
-        switchToPage(ui->pagePlugin);
+        openPageTab(PageKey::Plugin);
     });
-
-    // 默认首页首次显示前先创建。
-    ensureHomePage();
 }
 
 void MainWindow::setupStatusBarContent()
@@ -201,12 +209,26 @@ void MainWindow::switchToPage(QWidget *page)
         return;
     }
 
-    // 仅负责切换堆叠页。按钮选中态由点击行为 + QButtonGroup 互斥机制维护。
-    ui->mainPageStack->setCurrentWidget(page);
+    // 仅负责切换标签页。
+    const int tabIndex = ui->mainTabWidget->indexOf(page);
+    if (tabIndex < 0) {
+        return;
+    }
+    ui->mainTabWidget->setCurrentIndex(tabIndex);
+}
 
-    // 页面切换后触发一次“页面已激活”回调，用于按需刷新。
-    // 注意：stack 页是 Designer 里的容器 QWidget，不是业务页面本体，
-    // 这里按容器映射到对应业务页实例并触发回调。
+void MainWindow::onCurrentTabChanged(int index)
+{
+    if (index < 0) {
+        return;
+    }
+
+    const QWidget *page = ui->mainTabWidget->widget(index);
+    if (!page) {
+        return;
+    }
+
+    // 标签切换后触发一次“页面已激活”回调，用于按需刷新。
     PlaceholderPageBase *activatedPage = nullptr;
     if (page == ui->pageHome) {
         activatedPage = m_homePage;
@@ -230,15 +252,139 @@ void MainWindow::switchToPage(QWidget *page)
     }
 }
 
+void MainWindow::openPageTab(PageKey pageKey)
+{
+    QWidget *tabWidget = nullptr;
+    QString tabTitle;
+
+    switch (pageKey) {
+    case PageKey::Home:
+        ensureHomePage();
+        tabWidget = ui->pageHome;
+        tabTitle = QStringLiteral("首页");
+        break;
+    case PageKey::ProtocolEditor:
+        ensureProtocolEditorPage();
+        tabWidget = ui->pageProtocolEditor;
+        tabTitle = QStringLiteral("协议编辑");
+        break;
+    case PageKey::ProtocolDebug:
+        ensureProtocolDebugPage();
+        tabWidget = ui->pageProtocolDebug;
+        tabTitle = QStringLiteral("协议调试");
+        break;
+    case PageKey::ProtocolExport:
+        ensureProtocolExportPage();
+        tabWidget = ui->pageProtocolExport;
+        tabTitle = QStringLiteral("协议导出");
+        break;
+    case PageKey::DeviceUpgrade:
+        ensureDeviceUpgradePage();
+        tabWidget = ui->pageDeviceUpgrade;
+        tabTitle = QStringLiteral("设备升级");
+        break;
+    case PageKey::Terminal:
+        ensureTerminalPage();
+        tabWidget = ui->pageTerminal;
+        tabTitle = QStringLiteral("终端调试");
+        break;
+    case PageKey::Log:
+        ensureLogPage();
+        tabWidget = ui->pageLog;
+        tabTitle = QStringLiteral("日志导出");
+        break;
+    case PageKey::Plugin:
+        ensurePluginPage();
+        tabWidget = ui->pagePlugin;
+        tabTitle = QStringLiteral("外挂脚本");
+        break;
+    }
+
+    if (!tabWidget) {
+        return;
+    }
+
+    int tabIndex = ui->mainTabWidget->indexOf(tabWidget);
+    if (tabIndex < 0) {
+        tabIndex = ui->mainTabWidget->addTab(tabWidget, tabTitle);
+    } else {
+        ui->mainTabWidget->setTabText(tabIndex, tabTitle);
+    }
+
+    ui->mainTabWidget->setCurrentIndex(tabIndex);
+}
+
+void MainWindow::closeTabByWidget(QWidget *tabWidget)
+{
+    if (!tabWidget) {
+        return;
+    }
+
+    if (tabWidget == ui->pageHome) {
+        return;
+    }
+
+    const int tabIndex = ui->mainTabWidget->indexOf(tabWidget);
+    if (tabIndex >= 0) {
+        ui->mainTabWidget->removeTab(tabIndex);
+    }
+
+    if (tabWidget == ui->pageProtocolEditor) {
+        delete m_protocolEditorPage;
+        m_protocolEditorPage = nullptr;
+    } else if (tabWidget == ui->pageProtocolDebug) {
+        delete m_protocolDebugPage;
+        m_protocolDebugPage = nullptr;
+    } else if (tabWidget == ui->pageProtocolExport) {
+        delete m_protocolExportPage;
+        m_protocolExportPage = nullptr;
+    } else if (tabWidget == ui->pageDeviceUpgrade) {
+        delete m_deviceUpgradePage;
+        m_deviceUpgradePage = nullptr;
+    } else if (tabWidget == ui->pageTerminal) {
+        delete m_terminalPage;
+        m_terminalPage = nullptr;
+    } else if (tabWidget == ui->pageLog) {
+        delete m_logPage;
+        m_logPage = nullptr;
+    } else if (tabWidget == ui->pagePlugin) {
+        delete m_pluginPage;
+        m_pluginPage = nullptr;
+    }
+}
+
 void MainWindow::setupHomePageBindings()
 {
     // 首页导入项目后会先写共享上下文，再发更新信号；主窗口只负责刷新展示。
     if (m_homePage && !m_homePageBindingsConnected) {
         connect(m_homePage, &HomePage::projectSummaryChanged, this, [this]() {
             setupStatusBarContent();
+            closeAllNonHomeTabs();
         });
         m_homePageBindingsConnected = true;
     }
+}
+
+void MainWindow::closeAllNonHomeTabs()
+{
+    // 复制当前标签页指针快照，避免关闭过程中 count/index 变化导致遍历失效。
+    QVector<QWidget *> toClose;
+    toClose.reserve(ui->mainTabWidget->count());
+    for (int i = 0; i < ui->mainTabWidget->count(); ++i) {
+        QWidget *tabWidget = ui->mainTabWidget->widget(i);
+        if (!tabWidget || tabWidget == ui->pageHome) {
+            continue;
+        }
+        toClose.push_back(tabWidget);
+    }
+
+    // 逐个关闭并释放对应页面实例。
+    for (QWidget *tabWidget : toClose) {
+        closeTabByWidget(tabWidget);
+    }
+
+    // 关闭完成后回到首页标签，确保视觉与交互一致。
+    openPageTab(PageKey::Home);
 }
 
 HomePage *MainWindow::ensureHomePage()

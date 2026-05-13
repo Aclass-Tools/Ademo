@@ -169,29 +169,53 @@
      </widget>
     </item>
     <item>
-     <widget class="QStackedWidget" name="mainPageStack">
+     <widget class="QTabWidget" name="mainTabWidget">
       <widget class="QWidget" name="pageHome">
+       <attribute name="title">
+        <string>首页</string>
+       </attribute>
        <layout class="QVBoxLayout" name="homeLayout"/>
       </widget>
       <widget class="QWidget" name="pageProtocolEditor">
+       <attribute name="title">
+        <string>协议编辑</string>
+       </attribute>
        <layout class="QVBoxLayout" name="protocolEditorLayout"/>
       </widget>
       <widget class="QWidget" name="pageProtocolDebug">
+       <attribute name="title">
+        <string>协议调试</string>
+       </attribute>
        <layout class="QVBoxLayout" name="protocolDebugLayout"/>
       </widget>
       <widget class="QWidget" name="pageProtocolExport">
+       <attribute name="title">
+        <string>协议导出</string>
+       </attribute>
        <layout class="QVBoxLayout" name="protocolExportLayout"/>
       </widget>
       <widget class="QWidget" name="pageDeviceUpgrade">
+       <attribute name="title">
+        <string>设备升级</string>
+       </attribute>
        <layout class="QVBoxLayout" name="deviceUpgradeLayout"/>
       </widget>
       <widget class="QWidget" name="pageTerminal">
+       <attribute name="title">
+        <string>终端调试</string>
+       </attribute>
        <layout class="QVBoxLayout" name="terminalLayout"/>
       </widget>
       <widget class="QWidget" name="pageLog">
+       <attribute name="title">
+        <string>日志导出</string>
+       </attribute>
        <layout class="QVBoxLayout" name="logLayout"/>
       </widget>
       <widget class="QWidget" name="pagePlugin">
+       <attribute name="title">
+        <string>外挂脚本</string>
+       </attribute>
        <layout class="QVBoxLayout" name="pluginLayout"/>
       </widget>
      </widget>
