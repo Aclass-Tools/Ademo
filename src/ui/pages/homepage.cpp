@@ -115,6 +115,7 @@ void HomePage::onImportProjectButtonClicked()
         m_writableProjectContext->localDbAddress = previewResult.localDbAddress;
         m_writableProjectContext->remoteDbAddress = previewResult.remoteDbAddress;
         m_writableProjectContext->configVersion = previewResult.configVersion;
+        m_writableProjectContext->rootVersion = previewResult.rootVersion;
     }
     emit projectSummaryChanged();
 
@@ -156,6 +157,7 @@ void HomePage::onOverviewAnchorClicked(const QUrl &url)
             m_writableProjectContext->localDbAddress = previewResult.localDbAddress;
             m_writableProjectContext->remoteDbAddress = previewResult.remoteDbAddress;
             m_writableProjectContext->configVersion = previewResult.configVersion;
+            m_writableProjectContext->rootVersion = previewResult.rootVersion;
         }
         emit projectSummaryChanged();
     }

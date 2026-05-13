@@ -133,47 +133,6 @@ QString renderJsonValue(const QJsonValue &value,
     return QStringLiteral("<div style='%1;color:#0F172A;'>%2</div>").arg(indent, scalarToText(value));
 }
 
-bool extractDbConfigFromValue(const QJsonValue &value, QString *local, QString *remote)
-{
-    if (value.isObject()) {
-        const QJsonObject obj = value.toObject();
-
-        // 命中 DBconfig 节点：读取 local/remote。
-        if (obj.contains(QStringLiteral("DBconfig")) && obj.value(QStringLiteral("DBconfig")).isObject()) {
-            const QJsonObject dbConfig = obj.value(QStringLiteral("DBconfig")).toObject();
-            const QString localValue = dbConfig.value(QStringLiteral("local")).toString().trimmed();
-            const QString remoteValue = dbConfig.value(QStringLiteral("remote")).toString().trimmed();
-            if (!localValue.isEmpty() || !remoteValue.isEmpty()) {
-                if (local) {
-                    *local = localValue;
-                }
-                if (remote) {
-                    *remote = remoteValue;
-                }
-                return true;
-            }
-        }
-
-        // 继续在子字段递归查找。
-        for (auto it = obj.constBegin(); it != obj.constEnd(); ++it) {
-            if (extractDbConfigFromValue(it.value(), local, remote)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    if (value.isArray()) {
-        const QJsonArray arr = value.toArray();
-        for (const QJsonValue &item : arr) {
-            if (extractDbConfigFromValue(item, local, remote)) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
 }
 
 bool JsonPreviewParser::load(const QString &filePath)
@@ -313,9 +272,10 @@ JsonPreviewParser::ProjectPreviewResult JsonPreviewParser::formattedTextForProje
     html += QStringLiteral("</div>");
     result.ok = true;
     result.html = html;
+    // 保存顶层 version，供上层做全局版本展示或跨页面共享。
+    result.rootVersion = m_rootObject.value(QStringLiteral("version")).toString().trimmed();
 
-    // 从项目对象中提取 DBconfig.local / DBconfig.remote。
-    // 约定 DBconfig 在项目实例对象根层。
+    // 从项目对象根层提取 DBconfig.local / DBconfig.remote。
     for (const QJsonValue &item : m_instances) {
         if (!item.isObject()) {
             continue;
@@ -333,13 +293,9 @@ JsonPreviewParser::ProjectPreviewResult JsonPreviewParser::formattedTextForProje
             continue;
         }
 
-        // 优先读取项目根层 DBconfig；若不存在，再递归在项目对象中查找第一个 DBconfig。
         const QJsonObject dbConfig = obj.value(QStringLiteral("DBconfig")).toObject();
         result.localDbAddress = dbConfig.value(QStringLiteral("local")).toString().trimmed();
         result.remoteDbAddress = dbConfig.value(QStringLiteral("remote")).toString().trimmed();
-        if (result.localDbAddress.isEmpty() && result.remoteDbAddress.isEmpty()) {
-            extractDbConfigFromValue(QJsonValue(obj), &result.localDbAddress, &result.remoteDbAddress);
-        }
         result.configVersion = obj.value(QStringLiteral("project_version")).toString().trimmed();
         break;
     }

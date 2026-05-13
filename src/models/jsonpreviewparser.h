@@ -23,6 +23,7 @@ public:
         QString localDbAddress;
         QString remoteDbAddress;
         QString configVersion;
+        QString rootVersion;
     };
 
     // 加载本地 JSON 到内部缓存。
@@ -32,6 +33,7 @@ public:
     // 基于内部缓存按“项目显示名”返回该项目的结构化预览结果：
     // - html：用于页面展示的富文本
     // - localDbAddress/remoteDbAddress：从 DBconfig 中提取的本地/远程地址
+    // - rootVersion：JSON 顶层 version 字段
     // expandedNodes 用于控制哪些对象/数组节点处于展开状态（用于 UI 点击展开/收缩）。
     ProjectPreviewResult formattedTextForProject(const QString &projectDisplayName,
                                                  const QSet<QString> &expandedNodes = {}) const;

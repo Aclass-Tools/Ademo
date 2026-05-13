@@ -12,6 +12,7 @@
 
 struct ProjectSummaryContext
 {
+    QString rootVersion;
     QString projectName;
     QString localDbAddress;
     QString remoteDbAddress;
