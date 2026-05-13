@@ -24,6 +24,8 @@ public:
     // 注入跨页面共享的“项目摘要上下文”（只读）。
     // 约束：基类与普通页面只保留只读指针，不直接修改内容。
     void setProjectContext(const std::shared_ptr<const ProjectSummaryContext> &projectContext);
+    // 页面被切换为当前页时触发；子类可覆写实现“进入页面刷新”。
+    virtual void onPageActivated();
 
     // 应用统一占位页样式。
 protected:

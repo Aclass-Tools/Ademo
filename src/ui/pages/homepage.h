@@ -27,6 +27,7 @@ class HomePage : public PlaceholderPageBase
 public:
     explicit HomePage(QWidget *parent = nullptr);
     ~HomePage();
+    void onPageActivated() override;
 
 signals:
     // 统一状态汇总更新信号：HomePage 修改共享上下文后发出，通知外层刷新显示。

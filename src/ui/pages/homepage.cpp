@@ -41,6 +41,12 @@ HomePage::~HomePage()
     delete ui;
 }
 
+void HomePage::onPageActivated()
+{
+    // 每次切回首页时刷新一次项目下拉列表，保持与本地 JSON 最新状态一致。
+    onLoadRefreshButtonClicked();
+}
+
 void HomePage::setWritableProjectContext(
     const std::shared_ptr<ProjectSummaryContext> &projectContext)
 {

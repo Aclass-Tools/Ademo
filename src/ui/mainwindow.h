@@ -25,6 +25,7 @@ class QLabel;
 class QToolButton;
 class QWidget;
 class WebSocketClient;
+class PlaceholderPageBase;
 class HomePage;
 class ProtocolEditorPage;
 class ProtocolDebugPage;
@@ -49,8 +50,17 @@ public:
     ~MainWindow();
 
 private:
-    // 创建各业务页并挂载到 mainwindow.ui 预留布局，同时初始化导航按钮行为。
+    // 初始化导航按钮行为。业务页改为“首次点击时创建（懒加载）”。
     void setupPages();
+    // 首次访问时创建对应页面，并返回已创建实例。
+    HomePage *ensureHomePage();
+    ProtocolEditorPage *ensureProtocolEditorPage();
+    ProtocolDebugPage *ensureProtocolDebugPage();
+    ProtocolExportPage *ensureProtocolExportPage();
+    DeviceUpgradePage *ensureDeviceUpgradePage();
+    TerminalPage *ensureTerminalPage();
+    LogPage *ensureLogPage();
+    PluginPage *ensurePluginPage();
     // 统一处理底栏常驻信息（首次创建标签 + 根据成员变量刷新文本）。
     void setupStatusBarContent();
     // 切换主区域当前页面（仅负责 stackedWidget 切换）。
@@ -87,5 +97,6 @@ private:
 
     // 跨页面共享项目摘要：HomePage 写入，MainWindow/其他页面只读。
     std::shared_ptr<ProjectSummaryContext> m_projectSummaryContext;
+    bool m_homePageBindingsConnected = false;
     QString m_currentUserName = QStringLiteral("engineer");
 };

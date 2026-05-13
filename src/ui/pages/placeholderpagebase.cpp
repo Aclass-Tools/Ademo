@@ -24,3 +24,8 @@ std::shared_ptr<const ProjectSummaryContext> PlaceholderPageBase::projectContext
 {
     return m_projectContext;
 }
+
+void PlaceholderPageBase::onPageActivated()
+{
+    // 基类默认无行为，保留给业务页面按需覆写。
+}

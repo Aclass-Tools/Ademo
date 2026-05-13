@@ -12,6 +12,7 @@
 #include "network/apiclient.h"
 #include "network/websocketclient.h"
 #include "ui/pages/homepage.h"
+#include "ui/pages/placeholderpagebase.h"
 #include "ui/pages/protocoleditorpage.h"
 #include "ui/pages/protocoldebugpage.h"
 #include "ui/pages/protocolexportpage.h"
@@ -28,8 +29,6 @@
 #include <QStatusBar>
 #include <QToolButton>
 #include <QWidget>
-
-#include <type_traits>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -78,47 +77,61 @@ void MainWindow::setupPages()
     // 统一导航按钮样式，避免每个按钮重复生成样式字符串。
     const QString navStyle = ThemeManager::navButtonStyle(m_palette);
 
-    // 统一页面装配器：
-    // - 创建页面对象
-    // - 挂到预留布局
-    // - 初始化对应导航按钮
-    // - 绑定点击切页
-    auto createAttachAndRegister = [this, navStyle](auto *&member, auto *layout, QToolButton *navButton, QWidget *stackPage) {
-        using PageT = std::remove_pointer_t<std::remove_reference_t<decltype(member)>>;
-        member = new PageT(this);
-        // 所有页面注入同一份只读共享上下文。
-        member->setProjectContext(m_projectSummaryContext);
-        if (layout) {
-            layout->addWidget(member);
+    auto initNavButton = [this, navStyle](QToolButton *navButton) {
+        if (!navButton) {
+            return;
         }
-
-        if (navButton && stackPage) {
-            // 初始化导航按钮行为与外观。
-            navButton->setCheckable(true);
-            navButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
-            navButton->setStyleSheet(navStyle);
-            m_navButtonGroup->addButton(navButton);
-
-            // 绑定导航点击：点击后切换到对应页面。
-            connect(navButton, &QToolButton::clicked, this, [this, page = stackPage]() {
-                switchToPage(page);
-            });
-        }
+        navButton->setCheckable(true);
+        navButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        navButton->setStyleSheet(navStyle);
+        m_navButtonGroup->addButton(navButton);
     };
 
-    createAttachAndRegister(m_homePage, ui->homeLayout, ui->btnToolHome, ui->pageHome);
-    createAttachAndRegister(m_protocolEditorPage, ui->protocolEditorLayout, ui->btnProtocolEdit, ui->pageProtocolEditor);
-    createAttachAndRegister(m_protocolDebugPage, ui->protocolDebugLayout, ui->btnProtocolDebug, ui->pageProtocolDebug);
-    createAttachAndRegister(m_protocolExportPage, ui->protocolExportLayout, ui->btnDeviceConnect, ui->pageProtocolExport);
-    createAttachAndRegister(m_deviceUpgradePage, ui->deviceUpgradeLayout, ui->btnDeviceUpgrade, ui->pageDeviceUpgrade);
-    createAttachAndRegister(m_terminalPage, ui->terminalLayout, ui->btnTerminalDebug, ui->pageTerminal);
-    createAttachAndRegister(m_logPage, ui->logLayout, ui->btnLogExport, ui->pageLog);
-    createAttachAndRegister(m_pluginPage, ui->pluginLayout, ui->btnPluginScript, ui->pagePlugin);
+    initNavButton(ui->btnToolHome);
+    initNavButton(ui->btnProtocolEdit);
+    initNavButton(ui->btnProtocolDebug);
+    initNavButton(ui->btnDeviceConnect);
+    initNavButton(ui->btnDeviceUpgrade);
+    initNavButton(ui->btnTerminalDebug);
+    initNavButton(ui->btnLogExport);
+    initNavButton(ui->btnPluginScript);
 
-    // HomePage 额外持有可写上下文，作为唯一写入入口。
-    if (m_homePage) {
-        m_homePage->setWritableProjectContext(m_projectSummaryContext);
-    }
+    // 导航点击后首次创建页面，再切换。
+    connect(ui->btnToolHome, &QToolButton::clicked, this, [this]() {
+        ensureHomePage();
+        switchToPage(ui->pageHome);
+    });
+    connect(ui->btnProtocolEdit, &QToolButton::clicked, this, [this]() {
+        ensureProtocolEditorPage();
+        switchToPage(ui->pageProtocolEditor);
+    });
+    connect(ui->btnProtocolDebug, &QToolButton::clicked, this, [this]() {
+        ensureProtocolDebugPage();
+        switchToPage(ui->pageProtocolDebug);
+    });
+    connect(ui->btnDeviceConnect, &QToolButton::clicked, this, [this]() {
+        ensureProtocolExportPage();
+        switchToPage(ui->pageProtocolExport);
+    });
+    connect(ui->btnDeviceUpgrade, &QToolButton::clicked, this, [this]() {
+        ensureDeviceUpgradePage();
+        switchToPage(ui->pageDeviceUpgrade);
+    });
+    connect(ui->btnTerminalDebug, &QToolButton::clicked, this, [this]() {
+        ensureTerminalPage();
+        switchToPage(ui->pageTerminal);
+    });
+    connect(ui->btnLogExport, &QToolButton::clicked, this, [this]() {
+        ensureLogPage();
+        switchToPage(ui->pageLog);
+    });
+    connect(ui->btnPluginScript, &QToolButton::clicked, this, [this]() {
+        ensurePluginPage();
+        switchToPage(ui->pagePlugin);
+    });
+
+    // 默认首页首次显示前先创建。
+    ensureHomePage();
 }
 
 void MainWindow::setupStatusBarContent()
@@ -190,14 +203,138 @@ void MainWindow::switchToPage(QWidget *page)
 
     // 仅负责切换堆叠页。按钮选中态由点击行为 + QButtonGroup 互斥机制维护。
     ui->mainPageStack->setCurrentWidget(page);
+
+    // 页面切换后触发一次“页面已激活”回调，用于按需刷新。
+    // 注意：stack 页是 Designer 里的容器 QWidget，不是业务页面本体，
+    // 这里按容器映射到对应业务页实例并触发回调。
+    PlaceholderPageBase *activatedPage = nullptr;
+    if (page == ui->pageHome) {
+        activatedPage = m_homePage;
+    } else if (page == ui->pageProtocolEditor) {
+        activatedPage = m_protocolEditorPage;
+    } else if (page == ui->pageProtocolDebug) {
+        activatedPage = m_protocolDebugPage;
+    } else if (page == ui->pageProtocolExport) {
+        activatedPage = m_protocolExportPage;
+    } else if (page == ui->pageDeviceUpgrade) {
+        activatedPage = m_deviceUpgradePage;
+    } else if (page == ui->pageTerminal) {
+        activatedPage = m_terminalPage;
+    } else if (page == ui->pageLog) {
+        activatedPage = m_logPage;
+    } else if (page == ui->pagePlugin) {
+        activatedPage = m_pluginPage;
+    }
+    if (activatedPage) {
+        activatedPage->onPageActivated();
+    }
 }
 
 void MainWindow::setupHomePageBindings()
 {
     // 首页导入项目后会先写共享上下文，再发更新信号；主窗口只负责刷新展示。
-    if (m_homePage) {
+    if (m_homePage && !m_homePageBindingsConnected) {
         connect(m_homePage, &HomePage::projectSummaryChanged, this, [this]() {
             setupStatusBarContent();
         });
+        m_homePageBindingsConnected = true;
     }
+}
+
+HomePage *MainWindow::ensureHomePage()
+{
+    if (!m_homePage) {
+        m_homePage = new HomePage(this);
+        m_homePage->setProjectContext(m_projectSummaryContext);
+        m_homePage->setWritableProjectContext(m_projectSummaryContext);
+        if (ui->homeLayout) {
+            ui->homeLayout->addWidget(m_homePage);
+        }
+        setupHomePageBindings();
+    }
+    return m_homePage;
+}
+
+ProtocolEditorPage *MainWindow::ensureProtocolEditorPage()
+{
+    if (!m_protocolEditorPage) {
+        m_protocolEditorPage = new ProtocolEditorPage(this);
+        m_protocolEditorPage->setProjectContext(m_projectSummaryContext);
+        if (ui->protocolEditorLayout) {
+            ui->protocolEditorLayout->addWidget(m_protocolEditorPage);
+        }
+    }
+    return m_protocolEditorPage;
+}
+
+ProtocolDebugPage *MainWindow::ensureProtocolDebugPage()
+{
+    if (!m_protocolDebugPage) {
+        m_protocolDebugPage = new ProtocolDebugPage(this);
+        m_protocolDebugPage->setProjectContext(m_projectSummaryContext);
+        if (ui->protocolDebugLayout) {
+            ui->protocolDebugLayout->addWidget(m_protocolDebugPage);
+        }
+    }
+    return m_protocolDebugPage;
+}
+
+ProtocolExportPage *MainWindow::ensureProtocolExportPage()
+{
+    if (!m_protocolExportPage) {
+        m_protocolExportPage = new ProtocolExportPage(this);
+        m_protocolExportPage->setProjectContext(m_projectSummaryContext);
+        if (ui->protocolExportLayout) {
+            ui->protocolExportLayout->addWidget(m_protocolExportPage);
+        }
+    }
+    return m_protocolExportPage;
+}
+
+DeviceUpgradePage *MainWindow::ensureDeviceUpgradePage()
+{
+    if (!m_deviceUpgradePage) {
+        m_deviceUpgradePage = new DeviceUpgradePage(this);
+        m_deviceUpgradePage->setProjectContext(m_projectSummaryContext);
+        if (ui->deviceUpgradeLayout) {
+            ui->deviceUpgradeLayout->addWidget(m_deviceUpgradePage);
+        }
+    }
+    return m_deviceUpgradePage;
+}
+
+TerminalPage *MainWindow::ensureTerminalPage()
+{
+    if (!m_terminalPage) {
+        m_terminalPage = new TerminalPage(this);
+        m_terminalPage->setProjectContext(m_projectSummaryContext);
+        if (ui->terminalLayout) {
+            ui->terminalLayout->addWidget(m_terminalPage);
+        }
+    }
+    return m_terminalPage;
+}
+
+LogPage *MainWindow::ensureLogPage()
+{
+    if (!m_logPage) {
+        m_logPage = new LogPage(this);
+        m_logPage->setProjectContext(m_projectSummaryContext);
+        if (ui->logLayout) {
+            ui->logLayout->addWidget(m_logPage);
+        }
+    }
+    return m_logPage;
+}
+
+PluginPage *MainWindow::ensurePluginPage()
+{
+    if (!m_pluginPage) {
+        m_pluginPage = new PluginPage(this);
+        m_pluginPage->setProjectContext(m_projectSummaryContext);
+        if (ui->pluginLayout) {
+            ui->pluginLayout->addWidget(m_pluginPage);
+        }
+    }
+    return m_pluginPage;
 }
