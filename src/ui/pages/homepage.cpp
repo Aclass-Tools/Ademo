@@ -4,7 +4,6 @@
 
 #include <QComboBox>
 #include <QCoreApplication>
-#include <QFile>
 #include <QPushButton>
 
 HomePage::HomePage(QWidget *parent)
@@ -43,8 +42,8 @@ void HomePage::onLoadRefreshButtonClicked()
 {
     // 步骤 1：读取本地 JSON 文件内容。
     const QString filePath = resolveProjectJsonPath();
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
+    const JsonPreviewParser::FileLoadResult loadResult = JsonPreviewParser::loadJsonFile(filePath);
+    if (!loadResult.ok) {
         // 打开失败时清空缓存，避免“导入项目”继续使用旧数据。
         m_loadedJsonPayload.clear();
         m_hasLoadedJson = false;
@@ -55,7 +54,7 @@ void HomePage::onLoadRefreshButtonClicked()
 
     // 步骤 2：通过模型层解析器提取“项目显示名列表”。
     // 约定解析逻辑在 JsonPreviewParser 内部，不在页面层写 QJson 细节。
-    m_loadedJsonPayload = file.readAll();
+    m_loadedJsonPayload = loadResult.payload;
     m_hasLoadedJson = true;
     QStringList names = JsonPreviewParser::extractProjectNames(m_loadedJsonPayload);
 

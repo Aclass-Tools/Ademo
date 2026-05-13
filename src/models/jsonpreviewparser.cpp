@@ -1,5 +1,6 @@
 ﻿#include "jsonpreviewparser.h"
 
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -51,6 +52,22 @@ JsonPreviewParser::Result JsonPreviewParser::parse(const QByteArray &payload)
     // - 减少原始数据的杂乱空格差异
     // - 便于用户快速观察层级结构
     result.formattedText = QString::fromUtf8(doc.toJson(QJsonDocument::Indented));
+    return result;
+}
+
+JsonPreviewParser::FileLoadResult JsonPreviewParser::loadJsonFile(const QString &filePath)
+{
+    FileLoadResult result;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        result.ok = false;
+        result.errorText = QStringLiteral("无法打开文件: %1").arg(filePath);
+        return result;
+    }
+
+    result.ok = true;
+    result.payload = file.readAll();
     return result;
 }
 

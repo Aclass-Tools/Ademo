@@ -29,10 +29,21 @@ public:
         QString errorText;
     };
 
+    struct FileLoadResult {
+        bool ok = false;
+        QByteArray payload;
+        QString errorText;
+    };
+
     // 解析任意 JSON 文本负载：
     // - 成功时返回规范化缩进文本（Indented）
     // - 失败时返回错误信息
     static Result parse(const QByteArray &payload);
+
+    // 从本地文件读取 JSON 原始字节流：
+    // - 成功时 ok=true，payload 为文件内容
+    // - 失败时 ok=false，errorText 为失败原因
+    static FileLoadResult loadJsonFile(const QString &filePath);
 
     // 从约定结构的 JSON 中提取项目名：
     // - 优先读取 instances[0].project_name
