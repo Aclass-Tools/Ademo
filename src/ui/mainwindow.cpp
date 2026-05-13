@@ -8,6 +8,7 @@
 
 #include "mainwindow.h"
 
+#include "models/projectsummarycontext.h"
 #include "network/apiclient.h"
 #include "network/websocketclient.h"
 #include "ui/pages/homepage.h"
@@ -43,6 +44,8 @@ MainWindow::MainWindow(QWidget *parent)
     // 基础传输客户端。
     m_apiClient = new ApiClient(this);
     m_wsClient = new WebSocketClient(this);
+    // 创建跨页面共享的项目摘要上下文（同一份智能指针在各页面间传递）。
+    m_projectSummaryContext = std::make_shared<ProjectSummaryContext>();
 
     // 先装配页面与导航，再做状态栏绑定，保证后续回调对象都已就绪。
     setupPages();
@@ -50,12 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
     // 主窗体基础样式由主题管理器统一生成。
     setStyleSheet(ThemeManager::mainWindowStyle(m_palette));
 
-    // 初始化状态栏文案源，统一通过 setupStatusBarContent() 渲染到底栏。
-    // 当前项目由 HomePage 导入后发出的 currentProjectChanged 信号维护。
-    m_currentProjectName.clear();
-    m_localDbAddress.clear();
-    m_remoteDbAddress.clear();
-    m_currentConfigVersion.clear();
+    // 初始化状态栏显示。
     setupStatusBarContent();
     setupHomePageBindings();
     ui->btnToolHome->setChecked(true);
@@ -88,6 +86,8 @@ void MainWindow::setupPages()
     auto createAttachAndRegister = [this, navStyle](auto *&member, auto *layout, QToolButton *navButton, QWidget *stackPage) {
         using PageT = std::remove_pointer_t<std::remove_reference_t<decltype(member)>>;
         member = new PageT(this);
+        // 所有页面注入同一份只读共享上下文。
+        member->setProjectContext(m_projectSummaryContext);
         if (layout) {
             layout->addWidget(member);
         }
@@ -114,6 +114,11 @@ void MainWindow::setupPages()
     createAttachAndRegister(m_terminalPage, ui->terminalLayout, ui->btnTerminalDebug, ui->pageTerminal);
     createAttachAndRegister(m_logPage, ui->logLayout, ui->btnLogExport, ui->pageLog);
     createAttachAndRegister(m_pluginPage, ui->pluginLayout, ui->btnPluginScript, ui->pagePlugin);
+
+    // HomePage 额外持有可写上下文，作为唯一写入入口。
+    if (m_homePage) {
+        m_homePage->setWritableProjectContext(m_projectSummaryContext);
+    }
 }
 
 void MainWindow::setupStatusBarContent()
@@ -140,22 +145,27 @@ void MainWindow::setupStatusBarContent()
         statusBar()->addPermanentWidget(m_configVersionLabel);
     }
 
+    const QString projectName = m_projectSummaryContext ? m_projectSummaryContext->projectName : QString();
+    const QString localDbAddress = m_projectSummaryContext ? m_projectSummaryContext->localDbAddress : QString();
+    const QString remoteDbAddress = m_projectSummaryContext ? m_projectSummaryContext->remoteDbAddress : QString();
+    const QString configVersion = m_projectSummaryContext ? m_projectSummaryContext->configVersion : QString();
+
     // 当前项目：空值回落到“未选择项目”。
-    const QString shownProject = m_currentProjectName.trimmed().isEmpty()
+    const QString shownProject = projectName.trimmed().isEmpty()
         ? QStringLiteral("未选择项目")
-        : m_currentProjectName.trimmed();
+        : projectName.trimmed();
     m_connectionLabel->setText(QStringLiteral("当前项目描述: %1").arg(shownProject));
 
     // 本地数据库：空值回落到“--”。
-    const QString shownLocalDb = m_localDbAddress.trimmed().isEmpty()
+    const QString shownLocalDb = localDbAddress.trimmed().isEmpty()
         ? QStringLiteral("--")
-        : m_localDbAddress.trimmed();
+        : localDbAddress.trimmed();
     m_localDbLabel->setText(QStringLiteral("本地数据库: %1").arg(shownLocalDb));
 
     // 远程数据库：空值回落到“--”。
-    const QString shownRemoteDb = m_remoteDbAddress.trimmed().isEmpty()
+    const QString shownRemoteDb = remoteDbAddress.trimmed().isEmpty()
         ? QStringLiteral("--")
-        : m_remoteDbAddress.trimmed();
+        : remoteDbAddress.trimmed();
     m_remoteDbLabel->setText(QStringLiteral("远程数据库: %1").arg(shownRemoteDb));
 
     // 当前用户：空值回落到“--”。
@@ -165,9 +175,9 @@ void MainWindow::setupStatusBarContent()
     m_userLabel->setText(QStringLiteral("User: %1").arg(shownUser));
 
     // 配置版本：空值回落到“--”。
-    const QString shownVersion = m_currentConfigVersion.trimmed().isEmpty()
+    const QString shownVersion = configVersion.trimmed().isEmpty()
         ? QStringLiteral("--")
-        : m_currentConfigVersion.trimmed();
+        : configVersion.trimmed();
     m_configVersionLabel->setText(QStringLiteral("Config Version: %1").arg(shownVersion));
 }
 
@@ -184,17 +194,10 @@ void MainWindow::switchToPage(QWidget *page)
 
 void MainWindow::setupHomePageBindings()
 {
-    // 首页项目变化 -> 写入成员变量并刷新底栏“当前项目”。
+    // 首页导入项目后会先写共享上下文，再发更新信号；主窗口只负责刷新展示。
     if (m_homePage) {
-        connect(m_homePage, &HomePage::currentProjectChanged, this, [this](const QString &projectName) {
-            m_currentProjectName = projectName;
+        connect(m_homePage, &HomePage::projectSummaryChanged, this, [this]() {
             setupStatusBarContent();
         });
-        connect(m_homePage, &HomePage::projectDbConfigChanged, this,
-            [this](const QString &localDbAddress, const QString &remoteDbAddress) {
-                m_localDbAddress = localDbAddress;
-                m_remoteDbAddress = remoteDbAddress;
-                setupStatusBarContent();
-            });
     }
 }

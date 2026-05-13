@@ -22,6 +22,7 @@ public:
         QString html;
         QString localDbAddress;
         QString remoteDbAddress;
+        QString configVersion;
     };
 
     // 加载本地 JSON 到内部缓存。

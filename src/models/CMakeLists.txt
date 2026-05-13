@@ -8,6 +8,7 @@ set(ACLASS_MODEL_SOURCES
 set(ACLASS_MODEL_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/pointtablemodel.h
     ${CMAKE_CURRENT_LIST_DIR}/jsonpreviewparser.h
+    ${CMAKE_CURRENT_LIST_DIR}/projectsummarycontext.h
 )
 
 target_sources(AclassModelSources INTERFACE

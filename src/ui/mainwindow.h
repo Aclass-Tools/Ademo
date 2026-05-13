@@ -14,7 +14,10 @@
 #pragma once
 
 #include <QMainWindow>
+#include <memory>
 #include "ui/theme/thememanager.h"
+
+struct ProjectSummaryContext;
 
 class ApiClient;
 class QButtonGroup;
@@ -82,10 +85,7 @@ private:
     QLabel *m_userLabel = nullptr;          // 当前用户（右侧）
     QLabel *m_configVersionLabel = nullptr; // 配置版本（右侧）
 
-    // 状态栏文案源：所有常驻显示都从这些成员变量渲染。
-    QString m_currentProjectName;
-    QString m_localDbAddress;
-    QString m_remoteDbAddress;
+    // 跨页面共享项目摘要：HomePage 写入，MainWindow/其他页面只读。
+    std::shared_ptr<ProjectSummaryContext> m_projectSummaryContext;
     QString m_currentUserName = QStringLiteral("engineer");
-    QString m_currentConfigVersion;
 };

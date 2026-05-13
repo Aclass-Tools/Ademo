@@ -1,8 +1,8 @@
 ﻿#include "homepage.h"
 #include "ui_homepage.h"
+#include "models/projectsummarycontext.h"
 
 #include <QComboBox>
-#include <QCoreApplication>
 #include <QPushButton>
 #include <QTextBrowser>
 #include <QUrl>
@@ -39,6 +39,14 @@ HomePage::HomePage(QWidget *parent)
 HomePage::~HomePage()
 {
     delete ui;
+}
+
+void HomePage::setWritableProjectContext(
+    const std::shared_ptr<ProjectSummaryContext> &projectContext)
+{
+    // HomePage 保留可写上下文；同时把只读视图注入到基类，供统一访问。
+    m_writableProjectContext = projectContext;
+    setProjectContext(projectContext);
 }
 
 void HomePage::onLoadRefreshButtonClicked()
@@ -97,13 +105,18 @@ void HomePage::onImportProjectButtonClicked()
         return;
     }
     ui->homeOverviewplainTextEdit->setHtml(previewResult.html);
-    emit projectDbConfigChanged(previewResult.localDbAddress, previewResult.remoteDbAddress);
 
-    // 当前项目标签和对外信号同步为“用户当前选择的项目”。
+    // 当前项目标签同步为“用户当前选择的项目”。
     const QString projectName = selectedProject;
     ui->homeCurrentProjectValueLabel->setText(
         projectName.isEmpty() ? QStringLiteral("未选择项目") : projectName);
-    emit currentProjectChanged(projectName);
+    if (m_writableProjectContext) {
+        m_writableProjectContext->projectName = projectName;
+        m_writableProjectContext->localDbAddress = previewResult.localDbAddress;
+        m_writableProjectContext->remoteDbAddress = previewResult.remoteDbAddress;
+        m_writableProjectContext->configVersion = previewResult.configVersion;
+    }
+    emit projectSummaryChanged();
 
     // 保持原有行为：导入后仍通知上层执行统一刷新流程。
     emit jsonRefreshRequested();
@@ -138,7 +151,13 @@ void HomePage::onOverviewAnchorClicked(const QUrl &url)
         m_jsonPreviewParser.formattedTextForProject(m_lastImportedProjectName, m_expandedNodeIds);
     if (previewResult.ok && !previewResult.html.isEmpty()) {
         ui->homeOverviewplainTextEdit->setHtml(previewResult.html);
-        emit projectDbConfigChanged(previewResult.localDbAddress, previewResult.remoteDbAddress);
+        if (m_writableProjectContext) {
+            m_writableProjectContext->projectName = m_lastImportedProjectName;
+            m_writableProjectContext->localDbAddress = previewResult.localDbAddress;
+            m_writableProjectContext->remoteDbAddress = previewResult.remoteDbAddress;
+            m_writableProjectContext->configVersion = previewResult.configVersion;
+        }
+        emit projectSummaryChanged();
     }
 }
 
@@ -152,8 +171,8 @@ void HomePage::refreshCurrentProjectLabel()
         currentText.isEmpty() ? QStringLiteral("未选择项目") : currentText
     );
 
-    // 对外广播首页当前项目变化，供 MainWindow 等上层同步状态栏或其它区域显示。
-    emit currentProjectChanged(currentText);
+    // 当前版本使用统一 projectSummaryChanged 做跨层状态同步；
+    // 该函数仅保留页面内标签刷新职责。
 }
 
 QString HomePage::resolveProjectJsonPath() const

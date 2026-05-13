@@ -29,7 +29,7 @@
                         "DBconfig":
                         {
                             "local": "ATSV1",
-                            "remote": "192.168.11:ATSV2"
+                            "remote": "192.168.11:ATSV1"
                         }
                     }
                 ]
@@ -59,7 +59,11 @@
                             
                         },
                         "updatetime":"2021.1.15",
-                        "config":""
+                        "DBconfig":
+                        {
+                            "local": "ATSV2",
+                            "remote": "192.168.11:ATSV2"
+                        }
                     }
                 ]
             }
