@@ -1,25 +1,30 @@
-set(ACLASS_UI_PAGE_SOURCES
-    ui/pages/placeholderpagebase.cpp
-    ui/pages/placeholderpagebase.h
-    ui/pages/homepage.cpp
-    ui/pages/homepage.h
-    ui/pages/protocoleditorpage.cpp
-    ui/pages/protocoleditorpage.h
-    ui/pages/protocoldebugpage.cpp
-    ui/pages/protocoldebugpage.h
-    ui/pages/protocolexportpage.cpp
-    ui/pages/protocolexportpage.h
-    ui/pages/deviceupgradepage.cpp
-    ui/pages/deviceupgradepage.h
-    ui/pages/terminalpage.cpp
-    ui/pages/terminalpage.h
-    ui/pages/logpage.cpp
-    ui/pages/logpage.h
-    ui/pages/pluginpage.cpp
-    ui/pages/pluginpage.h
-)
+﻿add_library(AclassUiPageSources INTERFACE)
 
 set(ACLASS_UI_PAGE_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/placeholderpagebase.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/homepage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/protocoleditorpage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/protocoldebugpage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/protocolexportpage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/deviceupgradepage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/terminalpage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/logpage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/pluginpage.cpp
+)
+
+set(ACLASS_UI_PAGE_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/placeholderpagebase.h
+    ${CMAKE_CURRENT_LIST_DIR}/homepage.h
+    ${CMAKE_CURRENT_LIST_DIR}/protocoleditorpage.h
+    ${CMAKE_CURRENT_LIST_DIR}/protocoldebugpage.h
+    ${CMAKE_CURRENT_LIST_DIR}/protocolexportpage.h
+    ${CMAKE_CURRENT_LIST_DIR}/deviceupgradepage.h
+    ${CMAKE_CURRENT_LIST_DIR}/terminalpage.h
+    ${CMAKE_CURRENT_LIST_DIR}/logpage.h
+    ${CMAKE_CURRENT_LIST_DIR}/pluginpage.h
+)
+
+target_sources(AclassUiPageSources INTERFACE
     ${ACLASS_UI_PAGE_SOURCES}
-    PARENT_SCOPE
+    ${ACLASS_UI_PAGE_HEADERS}
 )

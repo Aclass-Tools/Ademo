@@ -1,9 +1,14 @@
-set(ACLASS_UI_THEME_SOURCES
-    ui/theme/thememanager.cpp
-    ui/theme/thememanager.h
-)
+﻿add_library(AclassUiThemeSources INTERFACE)
 
 set(ACLASS_UI_THEME_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/thememanager.cpp
+)
+
+set(ACLASS_UI_THEME_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/thememanager.h
+)
+
+target_sources(AclassUiThemeSources INTERFACE
     ${ACLASS_UI_THEME_SOURCES}
-    PARENT_SCOPE
+    ${ACLASS_UI_THEME_HEADERS}
 )

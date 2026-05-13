@@ -7,21 +7,17 @@ add_subdirectory(ui)
 set(ACLASS_CORE_SOURCES
     main.cpp
     app_icon.rc
-)
-
-set(ACLASS_RESOURCE_SOURCES
     ../resources/app.qrc
 )
 
 qt_add_executable(${ACLASS_TARGET}
     ${ACLASS_CORE_SOURCES}
-    ${ACLASS_NETWORK_SOURCES}
-    ${ACLASS_MODEL_SOURCES}
-    ${ACLASS_UI_SOURCES}
-    ${ACLASS_RESOURCE_SOURCES}
 )
 
 target_link_libraries(${ACLASS_TARGET} PRIVATE
+    AclassNetworkSources
+    AclassModelSources
+    AclassUiSources
     AclassToolUiFiles
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
