@@ -7,6 +7,10 @@
 #include "placeholderpagebase.h"
 #include "jsonpreviewparser.h"
 
+#include <QSet>
+#include <QString>
+#include <QUrl>
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class HomePage;
@@ -23,6 +27,7 @@ public:
 
 signals:
     void currentProjectChanged(const QString &projectName);
+    void projectDbConfigChanged(const QString &localDbAddress, const QString &remoteDbAddress);
     // 用户点击“刷新”后发出：请求上层重新拉取首页所需 JSON。
     void jsonRefreshRequested();
 
@@ -30,10 +35,13 @@ private:
     // void onProjectSelectionChanged(const QString &selectedProject);
     void onLoadRefreshButtonClicked();
     void onImportProjectButtonClicked();
+    void onOverviewAnchorClicked(const QUrl &url);
     void refreshCurrentProjectLabel();
     QString resolveProjectJsonPath() const;
 
     Ui::HomePage *ui;
     // 首页持有一个 JsonPreviewParser 成员，内部维护 payload 与解析状态。
     JsonPreviewParser m_jsonPreviewParser;
+    QString m_lastImportedProjectName;
+    QSet<QString> m_expandedNodeIds;
 };

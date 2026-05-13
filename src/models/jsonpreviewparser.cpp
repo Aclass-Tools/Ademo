@@ -5,6 +5,134 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QSet>
+
+namespace {
+QString nodeIdForPath(const QString &path)
+{
+    return path.toUtf8().toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+}
+
+QString scalarToText(const QJsonValue &value)
+{
+    if (value.isString()) {
+        return QStringLiteral("\"%1\"").arg(value.toString().toHtmlEscaped());
+    }
+    if (value.isBool()) {
+        return value.toBool() ? QStringLiteral("true") : QStringLiteral("false");
+    }
+    if (value.isDouble()) {
+        return QString::number(value.toDouble());
+    }
+    if (value.isNull()) {
+        return QStringLiteral("null");
+    }
+    return QStringLiteral("unknown");
+}
+
+QString renderJsonValue(const QJsonValue &value,
+                        const QString &path,
+                        int depth,
+                        const QSet<QString> &expandedNodes)
+{
+    const QString indent = QStringLiteral("margin-left:%1px;").arg(depth * 18);
+    const QString nodeId = nodeIdForPath(path);
+
+    if (value.isObject()) {
+        const QJsonObject obj = value.toObject();
+        const bool isRootObject = (path == QStringLiteral("root"));
+        const QString describeText = obj.value(QStringLiteral("describe")).toString().trimmed();
+        const QJsonValue instancesValue = obj.value(QStringLiteral("instances"));
+        const bool hasDescribe = !describeText.isEmpty();
+        const bool hasInstancesCount = instancesValue.isArray();
+        QString titleText = describeText;
+        if (titleText.isEmpty() && hasInstancesCount) {
+            titleText = QStringLiteral("列表");
+        }
+        if (hasInstancesCount) {
+            titleText += QStringLiteral(" (%1)").arg(instancesValue.toArray().size());
+        }
+        const bool shouldShowHeader = !isRootObject && (hasDescribe || hasInstancesCount);
+        // 对于可自描述节点（例如“包含板卡”），默认收起，点击后展开实例内容。
+        const bool expanded = shouldShowHeader ? expandedNodes.contains(nodeId) : true;
+        QString html;
+        if (shouldShowHeader) {
+            html += QStringLiteral(
+                "<div style='%1'>"
+                "<a href='toggle:%2' style='color:#1E40AF;text-decoration:none;font-size:18px;font-weight:600;'>%3 %4</a>"
+                "</div>")
+                .arg(indent, nodeId,
+                     expanded ? QStringLiteral("[-]") : QStringLiteral("[+]"),
+                     titleText.toHtmlEscaped());
+        }
+
+        if (expanded) {
+            for (auto it = obj.constBegin(); it != obj.constEnd(); ++it) {
+                const QString key = it.key();
+                // describe 已作为当前对象标题展示，不再在子字段中重复展示。
+                if (key == QStringLiteral("describe")) {
+                    continue;
+                }
+                const QString keyLineIndent = QStringLiteral("margin-left:%1px;").arg((depth + 1) * 18);
+                const QJsonValue child = it.value();
+                // instances 不显示字段名，但要在原位置展示其内容，保持结构顺序自然。
+                if (key == QStringLiteral("instances") && child.isArray()) {
+                    // 按需求将 instances 内容上提一个层级：与当前对象字段同级显示。
+                    html += renderJsonValue(child, path + QStringLiteral(".") + key, depth, expandedNodes);
+                    continue;
+                }
+                // 通用规则：
+                // 如果子对象内部已经有 describe/instances（即它能自描述并可折叠），
+                // 则不再显示父级字段名（如 boards），直接展示子对象标题（如 包含板卡）。
+                if (child.isObject()) {
+                    const QJsonObject childObj = child.toObject();
+                    const bool childHasDescribe = !childObj.value(QStringLiteral("describe")).toString().trimmed().isEmpty();
+                    const bool childHasInstances = childObj.value(QStringLiteral("instances")).isArray();
+                    if (childHasDescribe || childHasInstances) {
+                        html += renderJsonValue(child, path + QStringLiteral(".") + key, depth + 1, expandedNodes);
+                        continue;
+                    }
+                }
+                if (child.isObject() || child.isArray()) {
+                    html += QStringLiteral(
+                        "<div style='%1'><span style='color:#334155;'>%2</span>:</div>")
+                        .arg(keyLineIndent, key.toHtmlEscaped());
+                    html += renderJsonValue(child, path + QStringLiteral(".") + key, depth + 2, expandedNodes);
+                } else {
+                    html += QStringLiteral(
+                        "<div style='%1'><span style='color:#334155;'>%2</span>: "
+                        "<span style='color:#0F172A;'>%3</span></div>")
+                        .arg(keyLineIndent, key.toHtmlEscaped(), scalarToText(child));
+                }
+            }
+        }
+        return html;
+    }
+
+    if (value.isArray()) {
+        const QJsonArray arr = value.toArray();
+        QString html;
+        // 数组层级不再提供“收起/展开”入口，直接按当前层级展开渲染内容。
+        for (int i = 0; i < arr.size(); ++i) {
+            const QString rowIndent = QStringLiteral("margin-left:%1px;").arg((depth + 1) * 18);
+            const QJsonValue child = arr.at(i);
+            if (child.isObject() || child.isArray()) {
+                html += renderJsonValue(child,
+                    path + QStringLiteral("[") + QString::number(i) + QStringLiteral("]"),
+                    depth + 1, expandedNodes);
+            } else {
+                html += QStringLiteral(
+                    "<div style='%1'><span style='color:#334155;'>-</span> "
+                    "<span style='color:#0F172A;'>%3</span></div>")
+                    .arg(rowIndent, scalarToText(child));
+            }
+        }
+        return html;
+    }
+
+    return QStringLiteral("<div style='%1;color:#0F172A;'>%2</div>").arg(indent, scalarToText(value));
+}
+}
 
 bool JsonPreviewParser::load(const QString &filePath)
 {
@@ -74,12 +202,15 @@ QStringList JsonPreviewParser::projectNames() const
     return m_projectNames;
 }
 
-QString JsonPreviewParser::formattedTextForProject(const QString &projectDisplayName)
+JsonPreviewParser::ProjectPreviewResult JsonPreviewParser::formattedTextForProject(
+    const QString &projectDisplayName, const QSet<QString> &expandedNodes) const
 {
+    ProjectPreviewResult result;
+
     // 未加载数据时无法进行项目过滤，直接返回空字符串。
     // 由上层 UI 决定展示“请先刷新”或其它提示文案。
     if (!m_loaded) {
-        return QString();
+        return result;
     }
 
     // 标准化用户选择值：
@@ -87,7 +218,7 @@ QString JsonPreviewParser::formattedTextForProject(const QString &projectDisplay
     // - “未选择项目”属于占位项，不进入解析流程。
     const QString selected = projectDisplayName.trimmed();
     if (selected.isEmpty() || selected == QStringLiteral("未选择项目")) {
-        return QString();
+        return result;
     }
 
     // 遍历 instances，按“显示名”匹配目标项目。
@@ -95,7 +226,7 @@ QString JsonPreviewParser::formattedTextForProject(const QString &projectDisplay
     QString html;
     html += QStringLiteral(
         "<div style='font-family:\"Microsoft YaHei\",\"Segoe UI\",sans-serif;"
-        "font-size:14px;line-height:1.7;color:#EAF2FF;'>");
+        "font-size:18px;line-height:1.8;color:#0F172A;'>");
 
     bool foundAny = false;
     for (const QJsonValue &item : m_instances) {
@@ -123,50 +254,48 @@ QString JsonPreviewParser::formattedTextForProject(const QString &projectDisplay
         if (displayText == selected) {
             foundAny = true;
             html += QStringLiteral(
-                "<h3 style='margin:0 0 8px 0;color:#FFFFFF;'>%1</h3>")
+                "<h3 style='margin:0 0 14px 0;color:#0B1220;font-size:32px;font-weight:800;line-height:1.25;'>%1</h3>")
                 .arg(displayText.toHtmlEscaped());
             html += QStringLiteral(
-                "<table style='border-collapse:collapse;width:100%;"
-                "background:#162437;border:1px solid #2E4669;'>");
-
-            const QStringList keys = obj.keys();
-            for (const QString &key : keys) {
-                const QJsonValue value = obj.value(key);
-                QString valueText;
-                if (value.isObject()) {
-                    valueText = QString::fromUtf8(
-                        QJsonDocument(value.toObject()).toJson(QJsonDocument::Compact));
-                } else if (value.isArray()) {
-                    valueText = QString::fromUtf8(
-                        QJsonDocument(value.toArray()).toJson(QJsonDocument::Compact));
-                } else if (value.isString()) {
-                    valueText = value.toString();
-                } else if (value.isBool()) {
-                    valueText = value.toBool() ? QStringLiteral("true") : QStringLiteral("false");
-                } else if (value.isDouble()) {
-                    valueText = QString::number(value.toDouble());
-                } else if (value.isNull()) {
-                    valueText = QStringLiteral("null");
-                }
-                html += QStringLiteral(
-                    "<tr>"
-                    "<td style='width:32%;padding:6px 8px;border:1px solid #2E4669;"
-                    "color:#A9C4E8;vertical-align:top;'>%1</td>"
-                    "<td style='padding:6px 8px;border:1px solid #2E4669;"
-                    "color:#F3F8FF;word-break:break-all;'>%2</td>"
-                    "</tr>")
-                    .arg(key.toHtmlEscaped(), valueText.toHtmlEscaped());
-            }
-
-            html += QStringLiteral("</table>");
+                "<div style='background:#F8FAFC;border:1px solid #CBD5E1;padding:14px;border-radius:8px;'>");
+            html += renderJsonValue(QJsonValue(obj), QStringLiteral("root"), 0, expandedNodes);
+            html += QStringLiteral("</div>");
         }
     }
 
     // 没匹配到项目时返回空字符串，让调用方决定提示文案。
     if (!foundAny) {
-        return QString();
+        return result;
     }
 
     html += QStringLiteral("</div>");
-    return html;
+    result.ok = true;
+    result.html = html;
+
+    // 从项目对象中提取 DBconfig.local / DBconfig.remote。
+    // 约定 DBconfig 在项目实例对象根层。
+    for (const QJsonValue &item : m_instances) {
+        if (!item.isObject()) {
+            continue;
+        }
+        const QJsonObject obj = item.toObject();
+        const QString name = obj.value(QStringLiteral("project_name")).toString().trimmed();
+        const QString version = obj.value(QStringLiteral("project_version")).toString().trimmed();
+        if (name.isEmpty()) {
+            continue;
+        }
+        const QString displayText = version.isEmpty()
+            ? name
+            : QStringLiteral("%1 (%2)").arg(name, version);
+        if (displayText != selected) {
+            continue;
+        }
+
+        const QJsonObject dbConfig = obj.value(QStringLiteral("DBconfig")).toObject();
+        result.localDbAddress = dbConfig.value(QStringLiteral("local")).toString().trimmed();
+        result.remoteDbAddress = dbConfig.value(QStringLiteral("remote")).toString().trimmed();
+        break;
+    }
+
+    return result;
 }

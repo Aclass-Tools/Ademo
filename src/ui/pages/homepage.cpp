@@ -4,6 +4,8 @@
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QPushButton>
+#include <QTextBrowser>
+#include <QUrl>
 
 HomePage::HomePage(QWidget *parent)
     : PlaceholderPageBase(parent)
@@ -25,6 +27,8 @@ HomePage::HomePage(QWidget *parent)
     // “导入项目”按钮：读取本地 JSON，显示格式化文本，并同步当前项目名。
     connect(ui->homeImportProjectButton,
         &QPushButton::clicked, this, &HomePage::onImportProjectButtonClicked);
+    connect(ui->homeOverviewplainTextEdit, &QTextBrowser::anchorClicked,
+        this, &HomePage::onOverviewAnchorClicked);
 
     // 页面初始化时主动执行一次“刷新项目内容”：
     // - 从本地固定目录读取 JSON
@@ -76,14 +80,24 @@ void HomePage::onImportProjectButtonClicked()
 {
     // 根据下拉框当前选中的项目名称，仅展示该项目对应的 JSON 内容。
     const QString selectedProject = ui->homeProjectSelectorCombo->currentText().trimmed();
-    const QString formattedText = m_jsonPreviewParser.formattedTextForProject(selectedProject);
-    if (formattedText.isEmpty()) {
+    if (selectedProject != m_lastImportedProjectName) {
+        m_lastImportedProjectName = selectedProject;
+        m_expandedNodeIds.clear();
+    }
+
+    // 默认展开根节点，首次导入时即可看到第一层内容。
+    m_expandedNodeIds.insert(QStringLiteral("cm9vdA"));
+
+    const JsonPreviewParser::ProjectPreviewResult previewResult =
+        m_jsonPreviewParser.formattedTextForProject(selectedProject, m_expandedNodeIds);
+    if (!previewResult.ok || previewResult.html.isEmpty()) {
         ui->homeOverviewplainTextEdit->setHtml(
             QStringLiteral("未能展示该项目内容，请先点击“刷新”并确认已选择有效项目。"));
         emit jsonRefreshRequested();
         return;
     }
-    ui->homeOverviewplainTextEdit->setHtml(formattedText);
+    ui->homeOverviewplainTextEdit->setHtml(previewResult.html);
+    emit projectDbConfigChanged(previewResult.localDbAddress, previewResult.remoteDbAddress);
 
     // 当前项目标签和对外信号同步为“用户当前选择的项目”。
     const QString projectName = selectedProject;
@@ -93,6 +107,39 @@ void HomePage::onImportProjectButtonClicked()
 
     // 保持原有行为：导入后仍通知上层执行统一刷新流程。
     emit jsonRefreshRequested();
+}
+
+void HomePage::onOverviewAnchorClicked(const QUrl &url)
+{
+    // 仅处理解析器输出的 toggle 链接。
+    const QString link = url.toString();
+    if (!link.startsWith(QStringLiteral("toggle:"))) {
+        return;
+    }
+
+    const QString nodeId = link.mid(QStringLiteral("toggle:").size());
+    if (nodeId.isEmpty()) {
+        return;
+    }
+
+    // 点击后切换当前节点展开状态。
+    if (m_expandedNodeIds.contains(nodeId)) {
+        m_expandedNodeIds.remove(nodeId);
+    } else {
+        m_expandedNodeIds.insert(nodeId);
+    }
+
+    if (m_lastImportedProjectName.isEmpty()) {
+        return;
+    }
+
+    // 基于当前项目和最新展开集合重绘 HTML。
+    const JsonPreviewParser::ProjectPreviewResult previewResult =
+        m_jsonPreviewParser.formattedTextForProject(m_lastImportedProjectName, m_expandedNodeIds);
+    if (previewResult.ok && !previewResult.html.isEmpty()) {
+        ui->homeOverviewplainTextEdit->setHtml(previewResult.html);
+        emit projectDbConfigChanged(previewResult.localDbAddress, previewResult.remoteDbAddress);
+    }
 }
 
 void HomePage::refreshCurrentProjectLabel()

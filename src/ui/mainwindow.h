@@ -75,13 +75,17 @@ private:
 
     QButtonGroup *m_navButtonGroup = nullptr;
 
-    // 状态栏常驻三段信息。
-    QLabel *m_connectionLabel = nullptr;    // 当前项目
-    QLabel *m_userLabel = nullptr;          // 当前用户
-    QLabel *m_configVersionLabel = nullptr; // 配置版本
+    // 状态栏常驻五段信息（左3 + 右2）。
+    QLabel *m_connectionLabel = nullptr;    // 当前项目描述
+    QLabel *m_localDbLabel = nullptr;       // 本地数据库
+    QLabel *m_remoteDbLabel = nullptr;      // 远程数据库
+    QLabel *m_userLabel = nullptr;          // 当前用户（右侧）
+    QLabel *m_configVersionLabel = nullptr; // 配置版本（右侧）
 
     // 状态栏文案源：所有常驻显示都从这些成员变量渲染。
     QString m_currentProjectName;
+    QString m_localDbAddress;
+    QString m_remoteDbAddress;
     QString m_currentUserName = QStringLiteral("engineer");
     QString m_currentConfigVersion;
 };

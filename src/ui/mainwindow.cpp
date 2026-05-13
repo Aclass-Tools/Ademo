@@ -53,6 +53,8 @@ MainWindow::MainWindow(QWidget *parent)
     // 初始化状态栏文案源，统一通过 setupStatusBarContent() 渲染到底栏。
     // 当前项目由 HomePage 导入后发出的 currentProjectChanged 信号维护。
     m_currentProjectName.clear();
+    m_localDbAddress.clear();
+    m_remoteDbAddress.clear();
     m_currentConfigVersion.clear();
     setupStatusBarContent();
     setupHomePageBindings();
@@ -121,6 +123,14 @@ void MainWindow::setupStatusBarContent()
         m_connectionLabel = new QLabel(this);
         statusBar()->addWidget(m_connectionLabel);
     }
+    if (!m_localDbLabel) {
+        m_localDbLabel = new QLabel(this);
+        statusBar()->addWidget(m_localDbLabel);
+    }
+    if (!m_remoteDbLabel) {
+        m_remoteDbLabel = new QLabel(this);
+        statusBar()->addWidget(m_remoteDbLabel);
+    }
     if (!m_userLabel) {
         m_userLabel = new QLabel(this);
         statusBar()->addPermanentWidget(m_userLabel);
@@ -134,7 +144,19 @@ void MainWindow::setupStatusBarContent()
     const QString shownProject = m_currentProjectName.trimmed().isEmpty()
         ? QStringLiteral("未选择项目")
         : m_currentProjectName.trimmed();
-    m_connectionLabel->setText(QStringLiteral("当前项目: %1").arg(shownProject));
+    m_connectionLabel->setText(QStringLiteral("当前项目描述: %1").arg(shownProject));
+
+    // 本地数据库：空值回落到“--”。
+    const QString shownLocalDb = m_localDbAddress.trimmed().isEmpty()
+        ? QStringLiteral("--")
+        : m_localDbAddress.trimmed();
+    m_localDbLabel->setText(QStringLiteral("本地数据库: %1").arg(shownLocalDb));
+
+    // 远程数据库：空值回落到“--”。
+    const QString shownRemoteDb = m_remoteDbAddress.trimmed().isEmpty()
+        ? QStringLiteral("--")
+        : m_remoteDbAddress.trimmed();
+    m_remoteDbLabel->setText(QStringLiteral("远程数据库: %1").arg(shownRemoteDb));
 
     // 当前用户：空值回落到“--”。
     const QString shownUser = m_currentUserName.trimmed().isEmpty()
@@ -168,5 +190,11 @@ void MainWindow::setupHomePageBindings()
             m_currentProjectName = projectName;
             setupStatusBarContent();
         });
+        connect(m_homePage, &HomePage::projectDbConfigChanged, this,
+            [this](const QString &localDbAddress, const QString &remoteDbAddress) {
+                m_localDbAddress = localDbAddress;
+                m_remoteDbAddress = remoteDbAddress;
+                setupStatusBarContent();
+            });
     }
 }
