@@ -44,8 +44,9 @@ HomePage::~HomePage()
 
 void HomePage::onLoadRefreshButtonClicked()
 {
-    // “刷新”按钮仅负责通知上层，不改变当前项目状态。
-    emit jsonRefreshRequested();
+    // “刷新”按钮也执行一次本地 JSON 读取与解析流程，
+    // 与“导入项目”保持一致，避免两套逻辑分叉。
+    onImportProjectButtonClicked();
 }
 
 void HomePage::onImportProjectButtonClicked()

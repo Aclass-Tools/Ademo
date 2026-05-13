@@ -52,10 +52,8 @@ private:
     void setupStatusBarContent();
     // 切换主区域当前页面（仅负责 stackedWidget 切换）。
     void switchToPage(QWidget *page);
-    // 绑定通信层信号：处理版本回调、错误提示、连接提示与项目名同步。
-    void setupCommunicationBindings();
-    // 用于显示临时通知，不承载长期状态。
-    void showStatus(const QString &message);
+    // 同步首页项目名到状态栏。
+    void setupHomePageBindings();
 
 private:
     ThemeKind m_themeKind = ThemeKind::IndustrialBlue;

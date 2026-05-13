@@ -44,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_apiClient = new ApiClient(this);
     m_wsClient = new WebSocketClient(this);
 
-    // 先装配页面与导航，再做状态栏/通信绑定，保证后续回调对象都已就绪。
+    // 先装配页面与导航，再做状态栏绑定，保证后续回调对象都已就绪。
     setupPages();
 
     // 主窗体基础样式由主题管理器统一生成。
@@ -55,15 +55,11 @@ MainWindow::MainWindow(QWidget *parent)
     m_currentProjectName.clear();
     m_currentConfigVersion.clear();
     setupStatusBarContent();
-    setupCommunicationBindings();
+    setupHomePageBindings();
     ui->btnToolHome->setChecked(true);
     switchToPage(ui->pageHome);
 
-    // 启动探针。
-    m_apiClient->getVersion();
-    // 首页首次创建后，主动拉取一次首页 JSON。
-    m_apiClient->getPoints();
-    m_wsClient->connectToServer();
+    // 当前阶段主界面不绑定通信层回调；首页数据读取由 HomePage 内部完成。
 }
 
 MainWindow::~MainWindow()
@@ -164,68 +160,13 @@ void MainWindow::switchToPage(QWidget *page)
     ui->mainPageStack->setCurrentWidget(page);
 }
 
-void MainWindow::setupCommunicationBindings()
+void MainWindow::setupHomePageBindings()
 {
-    // 目标：
-    // 1) 将通信层（HTTP/WebSocket）异步事件统一接入主窗口；
-    // 2) 在主窗口消费通信异常与关键数据回调；
-    // 3) 保留消息分发占位，后续由页面或消息总线承接业务逻辑。
-
-    // ApiClient::versionReceived:
-    // 启动后会请求配置版本。收到后写入成员变量，再统一刷新底栏。
-    connect(m_apiClient, &ApiClient::versionReceived, this, [this](const QString &version) {
-        m_currentConfigVersion = version;
-        setupStatusBarContent();
-    });
-
-    // ApiClient::pointsReceived / conflictDetected:
-    // 当前阶段先占位接住信号，避免后续重构时遗漏连接点；
-    // 当页面模型接入后，可将这里改为转发到具体页面或数据总线。
-    connect(m_apiClient, &ApiClient::pointsReceived, this, [](const QByteArray &) {});
-    connect(m_apiClient, &ApiClient::conflictDetected, this, [](int) {});
-
-    // ApiClient::requestFailed:
-    // HTTP/接口请求失败时，在状态栏给出短提示，便于快速定位通信异常。
-    connect(m_apiClient, &ApiClient::requestFailed, this, [this](const QString &message) {
-        showStatus(QStringLiteral("Request failed: %1").arg(message));
-    });
-
-    // WebSocketClient::connected / disconnected:
-    // 当前不映射到底栏，只保留短提示用于调试观察连接变化。
-    connect(m_wsClient, &WebSocketClient::connected, this, [this]() {
-        showStatus(QStringLiteral("WebSocket connected"));
-    });
-    connect(m_wsClient, &WebSocketClient::disconnected, this, [this]() {
-        showStatus(QStringLiteral("WebSocket disconnected"));
-    });
-
-    // WebSocketClient::textMessageReceived:
-    // 当前先占位；后续可在这里接入消息路由（例如转发给 Home/QML 或各业务页）。
-    connect(m_wsClient, &WebSocketClient::textMessageReceived, this, [](const QString &) {});
-
-    // WebSocketClient::errorOccurred:
-    // 连接或收发异常时输出错误提示，辅助排障。
-    connect(m_wsClient, &WebSocketClient::errorOccurred, this, [this](const QString &message) {
-        showStatus(QStringLiteral("WebSocket error: %1").arg(message));
-    });
-
-    // 首页项目选择变化 -> 写入成员变量并刷新底栏“当前项目”。
+    // 首页项目变化 -> 写入成员变量并刷新底栏“当前项目”。
     if (m_homePage) {
         connect(m_homePage, &HomePage::currentProjectChanged, this, [this](const QString &projectName) {
             m_currentProjectName = projectName;
             setupStatusBarContent();
         });
-
-        // 首页点击“刷新”时，触发一次后端 JSON 拉取。
-        connect(m_homePage, &HomePage::jsonRefreshRequested, this, [this]() {
-            m_apiClient->getPoints();
-            showStatus(QStringLiteral("Home JSON refresh requested"));
-        });
     }
-}
-
-void MainWindow::showStatus(const QString &message)
-{
-    // 临时提示条；长期状态由状态栏标签承载。
-    statusBar()->showMessage(message, 3000);
 }
