@@ -5,7 +5,7 @@
 #pragma once
 
 #include "placeholderpagebase.h"
-#include <QByteArray>
+#include "jsonpreviewparser.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -34,8 +34,6 @@ private:
     QString resolveProjectJsonPath() const;
 
     Ui::HomePage *ui;
-    // 缓存“最近一次点击刷新时读取到的 JSON 原始内容”。
-    // “导入项目”只使用这份缓存，不再直接访问文件。
-    QByteArray m_loadedJsonPayload;
-    bool m_hasLoadedJson = false;
+    // 首页持有一个 JsonPreviewParser 成员，内部维护 payload 与解析状态。
+    JsonPreviewParser m_jsonPreviewParser;
 };

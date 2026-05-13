@@ -55,6 +55,67 @@ JsonPreviewParser::Result JsonPreviewParser::parse(const QByteArray &payload)
     return result;
 }
 
+bool JsonPreviewParser::load(const QString &filePath)
+{
+    const FileLoadResult loadResult = loadJsonFile(filePath);
+    if (!loadResult.ok) {
+        m_payload.clear();
+        m_loaded = false;
+        m_lastError = loadResult.errorText;
+        return false;
+    }
+
+    m_payload = loadResult.payload;
+    m_loaded = true;
+    m_lastError.clear();
+    return true;
+}
+
+bool JsonPreviewParser::isLoaded() const
+{
+    return m_loaded;
+}
+
+QString JsonPreviewParser::lastError() const
+{
+    return m_lastError;
+}
+
+QStringList JsonPreviewParser::projectNames() const
+{
+    if (!m_loaded) {
+        return {};
+    }
+
+    return extractProjectNames(m_payload);
+}
+
+QString JsonPreviewParser::formattedText()
+{
+    if (!m_loaded) {
+        m_lastError = QStringLiteral("尚未加载项目数据");
+        return QString();
+    }
+
+    const Result preview = parse(m_payload);
+    if (!preview.ok) {
+        m_lastError = preview.errorText;
+        return QString();
+    }
+
+    m_lastError.clear();
+    return preview.formattedText;
+}
+
+QString JsonPreviewParser::currentProjectName() const
+{
+    if (!m_loaded) {
+        return QString();
+    }
+
+    return extractProjectName(m_payload);
+}
+
 JsonPreviewParser::FileLoadResult JsonPreviewParser::loadJsonFile(const QString &filePath)
 {
     FileLoadResult result;

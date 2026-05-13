@@ -1,6 +1,5 @@
 ﻿#include "homepage.h"
 #include "ui_homepage.h"
-#include "jsonpreviewparser.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -42,11 +41,7 @@ void HomePage::onLoadRefreshButtonClicked()
 {
     // 步骤 1：读取本地 JSON 文件内容。
     const QString filePath = resolveProjectJsonPath();
-    const JsonPreviewParser::FileLoadResult loadResult = JsonPreviewParser::loadJsonFile(filePath);
-    if (!loadResult.ok) {
-        // 打开失败时清空缓存，避免“导入项目”继续使用旧数据。
-        m_loadedJsonPayload.clear();
-        m_hasLoadedJson = false;
+    if (!m_jsonPreviewParser.load(filePath)) {
         // 不改动当前下拉框内容，仅向上层发出刷新事件占位。
         emit jsonRefreshRequested();
         return;
@@ -54,9 +49,7 @@ void HomePage::onLoadRefreshButtonClicked()
 
     // 步骤 2：通过模型层解析器提取“项目显示名列表”。
     // 约定解析逻辑在 JsonPreviewParser 内部，不在页面层写 QJson 细节。
-    m_loadedJsonPayload = loadResult.payload;
-    m_hasLoadedJson = true;
-    QStringList names = JsonPreviewParser::extractProjectNames(m_loadedJsonPayload);
+    QStringList names = m_jsonPreviewParser.projectNames();
 
     // 步骤 3：在首位补一个固定占位项，允许用户回到“未选择项目”状态。
     const QString kUnselectedProject = QStringLiteral("未选择项目");
@@ -82,7 +75,7 @@ void HomePage::onLoadRefreshButtonClicked()
 void HomePage::onImportProjectButtonClicked()
 {
     // “导入项目”按钮点击后：只使用“刷新”阶段加载的内存 JSON，不直接读文件。
-    if (!m_hasLoadedJson) {
+    if (!m_jsonPreviewParser.isLoaded()) {
         ui->homeOverviewplainTextEdit->setPlainText(
             QStringLiteral("尚未加载项目数据，请先点击“刷新”按钮。"));
         emit jsonRefreshRequested();
@@ -90,18 +83,17 @@ void HomePage::onImportProjectButtonClicked()
     }
 
     // 右侧文本框显示“解析后的 JSON（格式化后）”。
-    const JsonPreviewParser::Result preview = JsonPreviewParser::parse(m_loadedJsonPayload);
-    if (preview.ok) {
-        ui->homeOverviewplainTextEdit->setPlainText(preview.formattedText);
-    } else {
+    const QString formattedText = m_jsonPreviewParser.formattedText();
+    if (formattedText.isEmpty()) {
         ui->homeOverviewplainTextEdit->setPlainText(
-            QStringLiteral("JSON 解析失败：%1").arg(preview.errorText));
+            QStringLiteral("JSON 解析失败：%1").arg(m_jsonPreviewParser.lastError()));
         emit jsonRefreshRequested();
         return;
     }
+    ui->homeOverviewplainTextEdit->setPlainText(formattedText);
 
     // 从导入的 JSON 中提取当前项目名，并同步给上层 MainWindow 维护状态栏。
-    const QString projectName = JsonPreviewParser::extractProjectName(m_loadedJsonPayload);
+    const QString projectName = m_jsonPreviewParser.currentProjectName();
     ui->homeCurrentProjectValueLabel->setText(
         projectName.isEmpty() ? QStringLiteral("未选择项目") : projectName);
     emit currentProjectChanged(projectName);
@@ -129,3 +121,4 @@ QString HomePage::resolveProjectJsonPath() const
     // 使用固定绝对路径读取本地项目 JSON。后期引用再改
     return QStringLiteral("C:/Users/81966/Documents/AclassTool/data/projects/sample_project.json");
 }
+
