@@ -19,7 +19,6 @@ class HomePage : public PlaceholderPageBase
 public:
     explicit HomePage(QWidget *parent = nullptr);
     ~HomePage();
-    QString currentProjectName() const;
 
 signals:
     void currentProjectChanged(const QString &projectName);
@@ -27,7 +26,11 @@ signals:
     void jsonRefreshRequested();
 
 private:
+    // void onProjectSelectionChanged(const QString &selectedProject);
+    void onLoadRefreshButtonClicked();
+    void onImportProjectButtonClicked();
     void refreshCurrentProjectLabel();
+    QString resolveProjectJsonPath() const;
 
     Ui::HomePage *ui;
 };

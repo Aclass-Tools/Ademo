@@ -139,12 +139,9 @@
        </widget>
       </item>
       <item>
-       <widget class="QQuickWidget" name="homeOverviewQuickView">
-        <property name="styleSheet">
-         <string notr="true"/>
-        </property>
-        <property name="resizeMode">
-         <enum>QQuickWidget::ResizeMode::SizeRootObjectToView</enum>
+       <widget class="QPlainTextEdit" name="homeOverviewplainTextEdit">
+        <property name="readOnly">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -153,13 +150,6 @@
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>QQuickWidget</class>
-   <extends>QWidget</extends>
-   <header location="global">QtQuickWidgets/QQuickWidget</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

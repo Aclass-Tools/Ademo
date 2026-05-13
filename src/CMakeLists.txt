@@ -7,6 +7,8 @@
     network/websocketclient.h
     models/pointtablemodel.cpp
     models/pointtablemodel.h
+    models/jsonpreviewparser.cpp
+    models/jsonpreviewparser.h
     ui/mainwindow.cpp
     ui/mainwindow.h
     ui/theme/thememanager.cpp

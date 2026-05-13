@@ -1,0 +1,64 @@
+﻿{
+    "version": "v0.1",
+    "instances": 
+    [
+        {
+            "project_name": "gateway",
+            "project_version": "V0.1",
+            "project_id": "001",
+            "updatetime": "2021.1.15",
+            "boards": 
+            {
+                "describe": "包含板卡",
+                "instances": 
+                [
+                    {
+                        "name": "monitor",
+                        "devices":
+                        {
+                            "describe": "板内设备",
+                            "instances": ["sst1", "sst2","sst3"]
+                        },
+                        "protocol":
+                        {
+                            "describe": "使用协议",
+                            "instances": ["uppslave", "ModbusRTU"]
+                            
+                        },
+                        "updatetime":"2021.1.15",
+                        "config":""
+                    }
+                ]
+            }
+        },
+        {
+            "project_name": "gateway",
+            "project_version": "V0.2",
+            "project_id": "001",
+            "updatetime": "2021.1.15",
+            "boards": 
+            {
+                "describe": "包含板卡",
+                "instances": 
+                [
+                    {
+                        "name": "monitor",
+                        "devices":
+                        {
+                            "describe": "板内设备",
+                            "instances": ["sst1", "sst2","sst3"]
+                        },
+                        "protocol":
+                        {
+                            "describe": "使用协议",
+                            "instances": ["uppslave", "ModbusRTU"]
+                            
+                        },
+                        "updatetime":"2021.1.15",
+                        "config":""
+                    }
+                ]
+            }
+        }
+    ]
+}

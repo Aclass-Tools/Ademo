@@ -51,7 +51,8 @@ MainWindow::MainWindow(QWidget *parent)
     setStyleSheet(ThemeManager::mainWindowStyle(m_palette));
 
     // 初始化状态栏文案源，统一通过 setupStatusBarContent() 渲染到底栏。
-    m_currentProjectName = m_homePage ? m_homePage->currentProjectName() : QString();
+    // 当前项目由 HomePage 导入后发出的 currentProjectChanged 信号维护。
+    m_currentProjectName.clear();
     m_currentConfigVersion.clear();
     setupStatusBarContent();
     setupCommunicationBindings();
