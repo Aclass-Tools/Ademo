@@ -139,7 +139,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QPlainTextEdit" name="homeOverviewplainTextEdit">
+       <widget class="QTextEdit" name="homeOverviewplainTextEdit">
         <property name="readOnly">
          <bool>true</bool>
         </property>

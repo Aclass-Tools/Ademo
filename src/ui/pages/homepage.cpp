@@ -74,26 +74,19 @@ void HomePage::onLoadRefreshButtonClicked()
 
 void HomePage::onImportProjectButtonClicked()
 {
-    // “导入项目”按钮点击后：只使用“刷新”阶段加载的内存 JSON，不直接读文件。
-    if (!m_jsonPreviewParser.isLoaded()) {
-        ui->homeOverviewplainTextEdit->setPlainText(
-            QStringLiteral("尚未加载项目数据，请先点击“刷新”按钮。"));
-        emit jsonRefreshRequested();
-        return;
-    }
-
-    // 右侧文本框显示“解析后的 JSON（格式化后）”。
-    const QString formattedText = m_jsonPreviewParser.formattedText();
+    // 根据下拉框当前选中的项目名称，仅展示该项目对应的 JSON 内容。
+    const QString selectedProject = ui->homeProjectSelectorCombo->currentText().trimmed();
+    const QString formattedText = m_jsonPreviewParser.formattedTextForProject(selectedProject);
     if (formattedText.isEmpty()) {
-        ui->homeOverviewplainTextEdit->setPlainText(
-            QStringLiteral("JSON 解析失败：%1").arg(m_jsonPreviewParser.lastError()));
+        ui->homeOverviewplainTextEdit->setHtml(
+            QStringLiteral("未能展示该项目内容，请先点击“刷新”并确认已选择有效项目。"));
         emit jsonRefreshRequested();
         return;
     }
-    ui->homeOverviewplainTextEdit->setPlainText(formattedText);
+    ui->homeOverviewplainTextEdit->setHtml(formattedText);
 
-    // 从导入的 JSON 中提取当前项目名，并同步给上层 MainWindow 维护状态栏。
-    const QString projectName = m_jsonPreviewParser.currentProjectName();
+    // 当前项目标签和对外信号同步为“用户当前选择的项目”。
+    const QString projectName = selectedProject;
     ui->homeCurrentProjectValueLabel->setText(
         projectName.isEmpty() ? QStringLiteral("未选择项目") : projectName);
     emit currentProjectChanged(projectName);
