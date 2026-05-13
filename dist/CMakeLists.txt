@@ -1,4 +1,4 @@
-set(DIST_ROOT_DIR "${CMAKE_SOURCE_DIR}/dist")
+﻿set(DIST_ROOT_DIR "${CMAKE_SOURCE_DIR}/dist")
 set(DIST_DEBUG_DIR "${DIST_ROOT_DIR}/debug")
 set(DIST_RELEASE_DIR "${DIST_ROOT_DIR}/release")
 set(DIST_INSTALLER_DIR "${DIST_ROOT_DIR}/installer")
@@ -28,7 +28,7 @@ if(WIN32)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_DEBUG_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_RELEASE_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_INSTALLER_DIR}"
-            DEPENDS AclassTool
+            DEPENDS ${ACLASS_APP_TARGET}
             VERBATIM
         )
     elseif(NOT EXISTS "${WINDEPLOYQT_EXECUTABLE}")
@@ -37,7 +37,7 @@ if(WIN32)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_DEBUG_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_RELEASE_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_INSTALLER_DIR}"
-            DEPENDS AclassTool
+            DEPENDS ${ACLASS_APP_TARGET}
             VERBATIM
         )
     else()
@@ -46,9 +46,9 @@ if(WIN32)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_RELEASE_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_INSTALLER_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_RUNTIME_DIR}"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:AclassTool>" "${DIST_RUNTIME_DIR}/"
-            COMMAND "${WINDEPLOYQT_EXECUTABLE}" "${DIST_RUNTIME_DIR}/$<TARGET_FILE_NAME:AclassTool>"
-            DEPENDS AclassTool
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${ACLASS_APP_TARGET}>" "${DIST_RUNTIME_DIR}/"
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}" "${DIST_RUNTIME_DIR}/$<TARGET_FILE_NAME:${ACLASS_APP_TARGET}>"
+            DEPENDS ${ACLASS_APP_TARGET}
             COMMENT "Create Windows dist package in ${DIST_RUNTIME_DIR} using windeployqt"
             VERBATIM
         )
@@ -67,8 +67,7 @@ if(WIN32)
     set(CPACK_INSTALLED_DIRECTORIES "${DIST_RELEASE_DIR};.")
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
     set(CPACK_NSIS_DISPLAY_NAME "${PROJECT_NAME}")
-    # 安装器图标与卸载程序图标使用统一 .ico 资源。
-    set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/resources/icons/app_icon.ico")
+    # 瀹夎鍣ㄥ浘鏍囦笌鍗歌浇绋嬪簭鍥炬爣浣跨敤缁熶竴 .ico 璧勬簮銆?    set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/resources/icons/app_icon.ico")
     set(CPACK_NSIS_MUI_UNIICON "${CMAKE_SOURCE_DIR}/resources/icons/app_icon.ico")
     set(CPACK_NSIS_INSTALLED_ICON_NAME "AclassTool.exe")
     # Keep InstallOptions page enabled for desktop shortcut checkbox.
@@ -134,3 +133,4 @@ else()
         VERBATIM
     )
 endif()
+

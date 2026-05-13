@@ -1,0 +1,25 @@
+set(ACLASS_UI_PAGE_SOURCES
+    ui/pages/placeholderpagebase.cpp
+    ui/pages/placeholderpagebase.h
+    ui/pages/homepage.cpp
+    ui/pages/homepage.h
+    ui/pages/protocoleditorpage.cpp
+    ui/pages/protocoleditorpage.h
+    ui/pages/protocoldebugpage.cpp
+    ui/pages/protocoldebugpage.h
+    ui/pages/protocolexportpage.cpp
+    ui/pages/protocolexportpage.h
+    ui/pages/deviceupgradepage.cpp
+    ui/pages/deviceupgradepage.h
+    ui/pages/terminalpage.cpp
+    ui/pages/terminalpage.h
+    ui/pages/logpage.cpp
+    ui/pages/logpage.h
+    ui/pages/pluginpage.cpp
+    ui/pages/pluginpage.h
+)
+
+set(ACLASS_UI_PAGE_SOURCES
+    ${ACLASS_UI_PAGE_SOURCES}
+    PARENT_SCOPE
+)
