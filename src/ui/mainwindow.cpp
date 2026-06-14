@@ -27,6 +27,7 @@
 #include <QButtonGroup>
 #include <QLabel>
 #include <QStatusBar>
+#include <QTabBar>
 #include <QTabWidget>
 #include <QToolButton>
 #include <QWidget>
@@ -307,6 +308,11 @@ void MainWindow::openPageTab(PageKey pageKey)
     int tabIndex = ui->mainTabWidget->indexOf(tabWidget);
     if (tabIndex < 0) {
         tabIndex = ui->mainTabWidget->addTab(tabWidget, tabTitle);
+        // 首页标签固定不可关闭：单独移除其右侧关闭按钮（×），
+        // 其它标签保留 × 由 tabCloseRequested 处理。
+        if (tabWidget == ui->pageHome) {
+            ui->mainTabWidget->tabBar()->setTabButton(tabIndex, QTabBar::RightSide, nullptr);
+        }
     } else {
         ui->mainTabWidget->setTabText(tabIndex, tabTitle);
     }

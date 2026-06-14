@@ -2,30 +2,76 @@
 <ui version="4.0">
  <class>ProtocolEditorPage</class>
  <widget class="QWidget" name="ProtocolEditorPage">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>260</width>
-    <height>176</height>
-   </rect>
-  </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="spacing">
-    <number>12</number>
-   </property>
-   <property name="leftMargin">
-    <number>16</number>
-   </property>
-   <property name="topMargin">
-    <number>16</number>
-   </property>
-   <property name="rightMargin">
-    <number>16</number>
-   </property>
-   <property name="bottomMargin">
-    <number>16</number>
-   </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="spacing"><number>8</number></property>
+   <property name="leftMargin"><number>12</number></property>
+   <property name="topMargin"><number>12</number></property>
+   <property name="rightMargin"><number>12</number></property>
+   <property name="bottomMargin"><number>12</number></property>
+   <item>
+    <widget class="QLabel" name="titleLabel"><property name="text"><string>协议编辑（编辑 .bin）</string></property></widget>
+   </item>
+
+   <!-- 工具栏 -->
+   <item>
+    <layout class="QHBoxLayout" name="toolbar">
+     <item><widget class="QPushButton" name="newButton"><property name="text"><string>新建</string></property></widget></item>
+     <item><widget class="QPushButton" name="openButton"><property name="text"><string>打开 .bin</string></property></widget></item>
+     <item><widget class="QPushButton" name="saveButton"><property name="text"><string>保存 .bin</string></property></widget></item>
+     <item><widget class="QPushButton" name="saveAsButton"><property name="text"><string>另存为</string></property></widget></item>
+     <item><widget class="QPushButton" name="sampleButton"><property name="text"><string>生成示例</string></property></widget></item>
+     <item><spacer name="toolbarSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+     <item><widget class="QLabel" name="filePathLabel"><property name="text"><string>（未保存）</string></property></widget></item>
+    </layout>
+   </item>
+
+   <!-- 主区：字段表 + 字段属性面板 -->
+   <item>
+    <widget class="QSplitter" name="mainSplitter">
+     <property name="orientation"><enum>Qt::Horizontal</enum></property>
+     <widget class="QGroupBox" name="fieldsGroup">
+      <property name="title"><string>字段列表</string></property>
+      <layout class="QVBoxLayout" name="fieldsLayout">
+       <item><widget class="QTableView" name="fieldsTable"/></item>
+       <item>
+        <layout class="QHBoxLayout" name="fieldOps">
+         <item><widget class="QPushButton" name="addButton"><property name="text"><string>添加字段</string></property></widget></item>
+         <item><widget class="QPushButton" name="removeButton"><property name="text"><string>删除选中</string></property></widget></item>
+         <item><widget class="QPushButton" name="upButton"><property name="text"><string>上移</string></property></widget></item>
+         <item><widget class="QPushButton" name="downButton"><property name="text"><string>下移</string></property></widget></item>
+         <item><spacer name="fieldOpsSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QGroupBox" name="detailGroup">
+      <property name="title"><string>字段属性（选中行编辑，回写表格）</string></property>
+      <layout class="QFormLayout" name="detailForm">
+       <item row="0" column="0"><widget class="QLabel" name="nameDetailLabel"><property name="text"><string>名称：</string></property></widget></item>
+       <item row="0" column="1"><widget class="QLineEdit" name="nameEdit"/></item>
+       <item row="1" column="0"><widget class="QLabel" name="typeDetailLabel"><property name="text"><string>类型：</string></property></widget></item>
+       <item row="1" column="1"><widget class="QComboBox" name="typeCombo"/></item>
+       <item row="2" column="0"><widget class="QLabel" name="offsetDetailLabel"><property name="text"><string>字节偏移：</string></property></widget></item>
+       <item row="2" column="1"><widget class="QSpinBox" name="offsetSpin"><property name="maximum"><number>65535</number></property></widget></item>
+       <item row="3" column="0"><widget class="QLabel" name="lengthDetailLabel"><property name="text"><string>字节长度：</string></property></widget></item>
+       <item row="3" column="1"><widget class="QSpinBox" name="lengthSpin"><property name="maximum"><number>65535</number></property></widget></item>
+       <item row="4" column="0"><widget class="QLabel" name="bitOffsetDetailLabel"><property name="text"><string>位偏移：</string></property></widget></item>
+       <item row="4" column="1"><widget class="QSpinBox" name="bitOffsetSpin"><property name="maximum"><number>255</number></property></widget></item>
+       <item row="5" column="0"><widget class="QLabel" name="bitLengthDetailLabel"><property name="text"><string>位长：</string></property></widget></item>
+       <item row="5" column="1"><widget class="QSpinBox" name="bitLengthSpin"><property name="maximum"><number>255</number></property></widget></item>
+       <item row="6" column="0"><widget class="QLabel" name="commentDetailLabel"><property name="text"><string>备注：</string></property></widget></item>
+       <item row="6" column="1"><widget class="QLineEdit" name="commentEdit"/></item>
+       <item row="7" column="0"><widget class="QLabel" name="applyHintLabel"><property name="text"><string>修改后点：</string></property></widget></item>
+       <item row="7" column="1"><widget class="QPushButton" name="applyDetailButton"><property name="text"><string>应用到表格</string></property></widget></item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+
+   <!-- 帧大小提示 -->
+   <item>
+    <widget class="QLabel" name="frameSizeLabel"><property name="text"><string>帧大小：0 字节</string></property></widget>
+   </item>
   </layout>
  </widget>
  <resources/>

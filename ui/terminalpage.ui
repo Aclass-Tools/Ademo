@@ -1,70 +1,106 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>TerminalPage</class>
  <widget class="QWidget" name="TerminalPage">
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="spacing">
-    <number>12</number>
-   </property>
-   <property name="leftMargin">
-    <number>16</number>
-   </property>
-   <property name="topMargin">
-    <number>16</number>
-   </property>
-   <property name="rightMargin">
-    <number>16</number>
-   </property>
-   <property name="bottomMargin">
-    <number>16</number>
-   </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="spacing"><number>8</number></property>
+   <property name="leftMargin"><number>12</number></property>
+   <property name="topMargin"><number>12</number></property>
+   <property name="rightMargin"><number>12</number></property>
+   <property name="bottomMargin"><number>12</number></property>
+
+   <!-- 标题 -->
    <item>
     <widget class="QLabel" name="titleLabel">
-     <property name="text">
-      <string>终端（占位）</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
+     <property name="text"><string>终端调试 / 串口收发</string></property>
     </widget>
    </item>
+
+   <!-- 串口参数配置区 -->
    <item>
-    <widget class="QLabel" name="descLabel">
-     <property name="text">
-      <string>用于承载终端调试内容，后续可替换为串口会话、命令记录与执行输出。</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QFrame" name="panelFrame">
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Plain</enum>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayoutPanel">
-      <item>
-       <spacer name="verticalSpacerPanel">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
+    <widget class="QGroupBox" name="configGroup">
+     <property name="title"><string>串口配置</string></property>
+     <layout class="QGridLayout" name="configLayout" columnstretch="0,1,0,1,0,1,0,1,0,1,0,0">
+      <item row="0" column="0"><widget class="QLabel" name="portNameLabel"><property name="text"><string>端口：</string></property></widget></item>
+      <item row="0" column="1"><widget class="QComboBox" name="portNameCombo"/></item>
+      <item row="0" column="2"><widget class="QLabel" name="baudLabel"><property name="text"><string>波特率：</string></property></widget></item>
+      <item row="0" column="3"><widget class="QComboBox" name="baudCombo"/></item>
+      <item row="0" column="4"><widget class="QLabel" name="dataBitsLabel"><property name="text"><string>数据位：</string></property></widget></item>
+      <item row="0" column="5"><widget class="QComboBox" name="dataBitsCombo"/></item>
+      <item row="0" column="6"><widget class="QLabel" name="stopBitsLabel"><property name="text"><string>停止位：</string></property></widget></item>
+      <item row="0" column="7"><widget class="QComboBox" name="stopBitsCombo"/></item>
+      <item row="0" column="8"><widget class="QLabel" name="parityLabel"><property name="text"><string>校验：</string></property></widget></item>
+      <item row="0" column="9"><widget class="QComboBox" name="parityCombo"/></item>
+      <item row="0" column="10"><widget class="QLabel" name="flowLabel"><property name="text"><string>流控：</string></property></widget></item>
+      <item row="0" column="11"><widget class="QComboBox" name="flowCombo"/></item>
+      <item row="1" column="0" colspan="12">
+       <layout class="QHBoxLayout" name="configBtnLayout">
+        <item><widget class="QPushButton" name="refreshPortsButton"><property name="text"><string>刷新端口</string></property></widget></item>
+        <item><widget class="QPushButton" name="openPortButton"><property name="text"><string>打开串口</string></property></widget></item>
+        <item><widget class="QLabel" name="connStatusLabel"><property name="text"><string>● 未连接</string></property></widget></item>
+        <item><spacer name="configSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+       </layout>
       </item>
      </layout>
     </widget>
+   </item>
+
+   <!-- 接收区 -->
+   <item>
+    <widget class="QGroupBox" name="recvGroup">
+     <property name="title"><string>接收</string></property>
+     <layout class="QVBoxLayout" name="recvLayout">
+      <item>
+       <layout class="QHBoxLayout" name="recvToolbar">
+        <item><widget class="QCheckBox" name="recvHexCheck"><property name="text"><string>Hex 显示</string></property></widget></item>
+        <item><widget class="QCheckBox" name="recvTimestampCheck"><property name="text"><string>时间戳</string></property></widget></item>
+        <item><widget class="QCheckBox" name="recvAutoNewlineCheck"><property name="text"><string>自动换行</string></property></widget></item>
+        <item><spacer name="recvToolbarSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+        <item><widget class="QPushButton" name="recvClearButton"><property name="text"><string>清空</string></property></widget></item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QTextEdit" name="recvTextEdit">
+        <property name="readOnly"><bool>true</bool></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+
+   <!-- 发送区 -->
+   <item>
+    <widget class="QGroupBox" name="sendGroup">
+     <property name="title"><string>发送</string></property>
+     <layout class="QVBoxLayout" name="sendLayout">
+      <item>
+       <widget class="QLineEdit" name="sendLineEdit">
+        <property name="placeholderText"><string>输入要发送的内容（Hex 模式请输入形如 01 02 FF 的十六进制）</string></property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="sendToolbar">
+        <item><widget class="QCheckBox" name="sendHexCheck"><property name="text"><string>Hex 发送</string></property></widget></item>
+        <item><widget class="QCheckBox" name="sendNewlineCheck"><property name="text"><string>追加换行</string></property></widget></item>
+        <item><widget class="QLabel" name="timerLabel"><property name="text"><string>定时发送(ms)：</string></property></widget></item>
+        <item><widget class="QSpinBox" name="timerIntervalSpin"><property name="minimum"><number>10</number></property><property name="maximum"><number>600000</number></property><property name="value"><number>1000</number></property></widget></item>
+        <item><widget class="QPushButton" name="timerToggleButton"><property name="text"><string>启动定时</string></property><property name="checkable"><bool>true</bool></property></widget></item>
+        <item><spacer name="sendToolbarSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+        <item><widget class="QPushButton" name="sendButton"><property name="text"><string>发送</string></property><property name="default"><bool>true</bool></property></widget></item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+
+   <!-- 状态统计区 -->
+   <item>
+    <layout class="QHBoxLayout" name="statusLayout">
+     <item><widget class="QLabel" name="rxCountLabel"><property name="text"><string>RX: 0</string></property></widget></item>
+     <item><widget class="QLabel" name="txCountLabel"><property name="text"><string>TX: 0</string></property></widget></item>
+     <item><spacer name="statusSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+     <item><widget class="QPushButton" name="resetCountButton"><property name="text"><string>计数清零</string></property></widget></item>
+    </layout>
    </item>
   </layout>
  </widget>

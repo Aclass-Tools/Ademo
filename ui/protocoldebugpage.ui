@@ -1,77 +1,84 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>ProtocolDebugPage</class>
  <widget class="QWidget" name="ProtocolDebugPage">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>260</width>
-    <height>164</height>
-   </rect>
-  </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="spacing">
-    <number>12</number>
-   </property>
-   <property name="leftMargin">
-    <number>16</number>
-   </property>
-   <property name="topMargin">
-    <number>16</number>
-   </property>
-   <property name="rightMargin">
-    <number>16</number>
-   </property>
-   <property name="bottomMargin">
-    <number>16</number>
-   </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="spacing"><number>8</number></property>
+   <property name="leftMargin"><number>12</number></property>
+   <property name="topMargin"><number>12</number></property>
+   <property name="rightMargin"><number>12</number></property>
+   <property name="bottomMargin"><number>12</number></property>
    <item>
-    <widget class="QLabel" name="titleLabel">
-     <property name="text">
-      <string>协议调试（占位）</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
-    </widget>
+    <widget class="QLabel" name="titleLabel"><property name="text"><string>协议调试（.bin 驱动）</string></property></widget>
    </item>
    <item>
-    <widget class="QLabel" name="descLabel">
-     <property name="text">
-      <string>用于承载协议调试流程，后续可接入报文构造、发送、响应解析与断言校验。</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QFrame" name="panelFrame">
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Plain</enum>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayoutPanel">
-      <item>
-       <spacer name="verticalSpacerPanel">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-     </layout>
+    <widget class="QSplitter" name="mainSplitter">
+     <property name="orientation"><enum>Qt::Horizontal</enum></property>
+
+     <!-- 左侧：协议字段表 -->
+     <widget class="QGroupBox" name="fieldsGroup">
+      <property name="title"><string>协议字段表</string></property>
+      <layout class="QVBoxLayout" name="fieldsLayout">
+       <item>
+        <layout class="QHBoxLayout" name="fieldsToolbar">
+         <item><widget class="QPushButton" name="loadBinButton"><property name="text"><string>加载 .bin</string></property></widget></item>
+         <item><widget class="QPushButton" name="loadSampleButton"><property name="text"><string>加载示例</string></property></widget></item>
+         <item><spacer name="fieldsSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+        </layout>
+       </item>
+       <item><widget class="QLabel" name="filePathLabel"><property name="text"><string>（未加载）</string></property></widget></item>
+       <item><widget class="QTableView" name="fieldsTable"/></item>
+      </layout>
+     </widget>
+
+     <!-- 右侧：组包/解帧 -->
+     <widget class="QWidget" name="rightPane">
+      <layout class="QVBoxLayout" name="rightLayout">
+       <!-- 组包发送 -->
+       <item>
+        <widget class="QGroupBox" name="encodeGroup">
+         <property name="title"><string>组包发送</string></property>
+         <layout class="QVBoxLayout" name="encodeLayout">
+          <item><widget class="QWidget" name="encodeInputsHost" native="true"/></item>
+          <item>
+           <layout class="QHBoxLayout" name="encodeToolbar">
+            <item><widget class="QCheckBox" name="sendViaSerialCheck"><property name="text"><string>经串口发送</string></property></widget></item>
+            <item><widget class="QPushButton" name="refreshPortsButton"><property name="text"><string>刷新端口</string></property></widget></item>
+            <item><widget class="QComboBox" name="portCombo"/></item>
+            <item><spacer name="encodeSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+            <item><widget class="QPushButton" name="encodeButton"><property name="text"><string>组包 + 发送</string></property><property name="default"><bool>true</bool></property></widget></item>
+           </layout>
+          </item>
+          <item><widget class="QLabel" name="encodedHexLabel"><property name="text"><string>组包结果：</string></property></widget></item>
+          <item><widget class="QLineEdit" name="encodedHexEdit"><property name="readOnly"><bool>true</bool></property></widget></item>
+         </layout>
+        </widget>
+       </item>
+
+       <!-- 接收解帧 -->
+       <item>
+        <widget class="QGroupBox" name="decodeGroup">
+         <property name="title"><string>接收解帧</string></property>
+         <layout class="QVBoxLayout" name="decodeLayout">
+          <item><widget class="QLabel" name="decodeHintLabel"><property name="text"><string>原始 hex（粘贴收到的字节）：</string></property></widget></item>
+          <item><widget class="QLineEdit" name="decodeHexEdit"/></item>
+          <item>
+           <layout class="QHBoxLayout" name="decodeToolbar">
+            <item><widget class="QPushButton" name="decodeButton"><property name="text"><string>手动解帧</string></property></widget></item>
+            <item><widget class="QPushButton" name="decodeClearButton"><property name="text"><string>清空</string></property></widget></item>
+            <item><spacer name="decodeSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+           </layout>
+          </item>
+          <item><widget class="QTableWidget" name="decodedTable">
+           <column><property name="text"><string>字段</string></property></column>
+           <column><property name="text"><string>类型</string></property></column>
+           <column><property name="text"><string>解析值</string></property></column>
+          </widget></item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>

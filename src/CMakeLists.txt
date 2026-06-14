@@ -23,6 +23,7 @@ target_link_libraries(${ACLASS_TARGET} PRIVATE
     Qt${QT_VERSION_MAJOR}::Network
     Qt${QT_VERSION_MAJOR}::WebSockets
     Qt${QT_VERSION_MAJOR}::QuickWidgets
+    Qt${QT_VERSION_MAJOR}::SerialPort
 )
 
 target_include_directories(${ACLASS_TARGET} PRIVATE
