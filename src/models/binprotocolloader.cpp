@@ -169,6 +169,12 @@ bool BinProtocolLoader::load(const QString &filePath)
     m_protocol.magic = magicStr;
     m_protocol.version = readLE<quint16>(data, pos);
     m_protocol.flags = readLE<quint16>(data, pos);
+    // flags 低 2 位编码传输封装协议（0=A0, 1=A3, 2=Modbus）；旧文件 flags=0 → A0。
+    switch (m_protocol.flags & 0x3) {
+    case 1: m_protocol.transport = TransportProtocol::A3; break;
+    case 2: m_protocol.transport = TransportProtocol::Modbus; break;
+    default: m_protocol.transport = TransportProtocol::A0; break;
+    }
     const quint32 fieldCount = readLE<quint32>(data, pos);
     const quint32 payloadOffset = readLE<quint32>(data, pos);
     // header 第 5 个 4 字节字段：字符串池起始偏移。
@@ -250,7 +256,14 @@ bool BinProtocolLoader::save(const QString &filePath) const
     }
     header.append(magicFixed);
     writeLE<quint16>(header, m_protocol.version);
-    writeLE<quint16>(header, m_protocol.flags);
+    // 把 transport 编进 flags 低 2 位（清掉旧低 2 位再写入），高位预留位保留。
+    quint16 flagsOut = quint16(m_protocol.flags & ~0x3);
+    switch (m_protocol.transport) {
+    case TransportProtocol::A3: flagsOut |= 0x1; break;
+    case TransportProtocol::Modbus: flagsOut |= 0x2; break;
+    case TransportProtocol::A0: default: flagsOut |= 0x0; break;
+    }
+    writeLE<quint16>(header, flagsOut);
     writeLE<quint32>(header, quint32(m_protocol.fields.size()));
     const quint32 payloadOffset = kBinProtocolHeaderSize;
     writeLE<quint32>(header, payloadOffset);

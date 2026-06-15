@@ -10,7 +10,7 @@ include(AclassProjectOptions)
 include(AclassPlatform)
 aclass_setup_project_options()
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network WebSockets QuickWidgets SerialPort)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network WebSockets QuickWidgets SerialPort SerialBus)
 qt_standard_project_setup()
 
 # Module layout.

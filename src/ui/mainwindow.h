@@ -34,6 +34,10 @@ class DeviceUpgradePage;
 class TerminalPage;
 class LogPage;
 class PluginPage;
+class ConnectionPage;
+class CommandOperationPage;
+
+namespace services { class ConnectionManager; }
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -58,7 +62,9 @@ private:
         DeviceUpgrade,
         Terminal,
         Log,
-        Plugin
+        Plugin,
+        Connection,
+        CommandOperation
     };
     // 初始化导航按钮行为。业务页改为“首次点击时创建（懒加载）”。
     void setupPages();
@@ -79,6 +85,8 @@ private:
     TerminalPage *ensureTerminalPage();
     LogPage *ensureLogPage();
     PluginPage *ensurePluginPage();
+    ConnectionPage *ensureConnectionPage();
+    CommandOperationPage *ensureCommandOperationPage();
     // 统一处理底栏常驻信息（首次创建标签 + 根据成员变量刷新文本）。
     void setupStatusBarContent();
     // 切换主区域当前页面（仅负责 stackedWidget 切换）。
@@ -103,6 +111,11 @@ private:
     TerminalPage *m_terminalPage = nullptr;
     LogPage *m_logPage = nullptr;
     PluginPage *m_pluginPage = nullptr;
+    ConnectionPage *m_connectionPage = nullptr;
+    CommandOperationPage *m_commandOpPage = nullptr;
+
+    // 全局共享连接管理器：所有页面通过它收发，不再各自持有串口。
+    services::ConnectionManager *m_connManager = nullptr;
 
     QButtonGroup *m_navButtonGroup = nullptr;
 

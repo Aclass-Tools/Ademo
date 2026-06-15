@@ -1,13 +1,13 @@
 ﻿#include "deviceupgradepage.h"
 #include "ui_deviceupgrade.h"
+#include "services/connectionmanager.h"
+#include "services/protocolparser.h"
 #include "ui/theme/thememanager.h"
 
-#include <QComboBox>
 #include <QDateTime>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QLineEdit>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSpinBox>
@@ -21,22 +21,18 @@ DeviceUpgradePage::DeviceUpgradePage(QWidget *parent)
     ui->setupUi(this);
     setStyleSheet(ThemeManager::contentPageStyle(ThemeManager::palette(ThemeKind::IndustrialBlue)));
 
-    populateBaudRates();
-
-    connect(ui->refreshPortsButton, &QPushButton::clicked, this, &DeviceUpgradePage::refreshPorts);
-    connect(ui->connectButton, &QPushButton::clicked, this, &DeviceUpgradePage::connectOrDisconnect);
     connect(ui->browseButton, &QPushButton::clicked, this, &DeviceUpgradePage::browseFirmware);
     connect(ui->startButton, &QPushButton::clicked, this, &DeviceUpgradePage::startUpgrade);
     connect(ui->cancelButton, &QPushButton::clicked, this, &DeviceUpgradePage::cancelUpgrade);
     connect(&m_timer, &QTimer::timeout, this, &DeviceUpgradePage::sendNextChunk);
 
-    connect(&m_serial, &SerialPortManager::portOpened, this, [this]() { updateConnStatus(true); });
-    connect(&m_serial, &SerialPortManager::portClosed, this, [this]() { updateConnStatus(false); });
-    connect(&m_serial, &SerialPortManager::errorOccurred, this, [this](const QString &msg) {
-        log(QStringLiteral("[错误] %1").arg(msg));
-    });
+    // 串口配置区已迁移到「设备连接」页：隐藏本页的端口/波特率/连接控件。
+    ui->refreshPortsButton->setVisible(false);
+    ui->connectButton->setVisible(false);
+    ui->portCombo->setVisible(false);
+    ui->baudCombo->setVisible(false);
+    ui->connStatusLabel->setText(QStringLiteral("● 待连接（请在设备连接页建立连接）"));
 
-    refreshPorts();
     updateConnStatus(false);
 }
 
@@ -46,52 +42,26 @@ DeviceUpgradePage::~DeviceUpgradePage()
     delete ui;
 }
 
+void DeviceUpgradePage::setConnectionManager(services::ConnectionManager *mgr)
+{
+    m_conn = mgr;
+    if (m_conn) {
+        connect(m_conn, &services::ConnectionManager::connectionChanged,
+                this, [this](bool connected, services::TransportMode) {
+            updateConnStatus(connected);
+        });
+        connect(m_conn, &services::ConnectionManager::errorOccurred, this, [this](const QString &msg) {
+            log(QStringLiteral("[错误] %1").arg(msg));
+        });
+        updateConnStatus(m_conn->isConnected());
+    }
+}
+
 void DeviceUpgradePage::onPageActivated()
 {
-    refreshPorts();
-}
-
-void DeviceUpgradePage::refreshPorts()
-{
-    const QString prev = ui->portCombo->currentData().toString();
-    ui->portCombo->blockSignals(true);
-    ui->portCombo->clear();
-    const QVariantList ports = SerialPortManager::availablePorts();
-    if (ports.isEmpty()) {
-        ui->portCombo->addItem(QStringLiteral("（无可用串口）"));
-    } else {
-        for (const QVariant &v : ports) {
-            const QVariantMap m = v.toMap();
-            const QString name = m.value(QStringLiteral("portName")).toString();
-            ui->portCombo->addItem(name, name);
-        }
+    if (m_conn) {
+        updateConnStatus(m_conn->isConnected());
     }
-    const int idx = ui->portCombo->findData(prev);
-    if (idx >= 0) {
-        ui->portCombo->setCurrentIndex(idx);
-    }
-    ui->portCombo->blockSignals(false);
-}
-
-void DeviceUpgradePage::populateBaudRates()
-{
-    const QList<int> stdBauds = { 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
-    for (int b : stdBauds) {
-        ui->baudCombo->addItem(QString::number(b), b);
-    }
-    ui->baudCombo->setCurrentIndex(stdBauds.indexOf(115200));
-}
-
-void DeviceUpgradePage::connectOrDisconnect()
-{
-    if (m_serial.isOpen()) {
-        m_serial.closePort();
-        return;
-    }
-    const QVariant data = ui->portCombo->currentData();
-    m_serial.setPortName(data.isValid() ? data.toString() : QString());
-    m_serial.setBaudRate(ui->baudCombo->currentData().toInt());
-    m_serial.openPort();
 }
 
 void DeviceUpgradePage::browseFirmware()
@@ -135,6 +105,7 @@ void DeviceUpgradePage::startUpgrade()
     m_chunkSize = ui->chunkSizeSpin->value();
     m_sentOffset = 0;
     m_totalSent = 0;
+    m_blockIndex = 0;
     m_running = true;
     setControlsRunning(true);
 
@@ -143,13 +114,11 @@ void DeviceUpgradePage::startUpgrade()
     log(QStringLiteral("开始升级：共 %1 字节，分块 %2 字节，块间延时 %3 ms")
         .arg(m_firmware.size()).arg(m_chunkSize).arg(ui->intervalSpin->value()));
 
-    if (!m_serial.isOpen()) {
-        log(QStringLiteral("[提示] 串口未连接，将以“模拟”方式跑通流程（写返回 -1）。"));
+    if (!m_conn || !m_conn->isConnected()) {
+        log(QStringLiteral("[提示] 未连接，将以“模拟”方式跑通流程（发送失败）。"));
     }
-    // 启动逐块发送；间隔由 intervalSpin 决定，首块立即发送。
     const int interval = ui->intervalSpin->value();
     m_timer.start(qMax(interval, 1));
-    // 立即触发第一块，避免等待一个间隔。
     sendNextChunk();
 }
 
@@ -182,14 +151,23 @@ void DeviceUpgradePage::sendNextChunk()
     const int remain = m_firmware.size() - m_sentOffset;
     const int thisChunk = qMin(m_chunkSize, remain);
     const QByteArray chunk = m_firmware.mid(m_sentOffset, thisChunk);
+    ++m_blockIndex;
 
-    const qint64 n = m_serial.sendData(chunk);
-    const int blockIndex = m_sentOffset / m_chunkSize + 1;
-    if (n > 0) {
-        log(QStringLiteral("[块 %1] 发送 %2 字节 OK").arg(blockIndex).arg(n));
-        m_totalSent += int(n);
+    // 每块固件用 A0 写帧封装：mainCommand/subCommand 携带块号（mod 65536）。
+    const quint16 blockIdx16 = quint16(m_blockIndex & 0xFFFF);
+    QString err;
+    bool ok = false;
+    if (m_conn && m_conn->isConnected()) {
+        const QByteArray frame = services::ProtocolParser::buildWriteFrame(
+            services::kProtocolA0, m_sourceId, m_targetId,
+            quint8((blockIdx16 >> 8) & 0xFF), quint8(blockIdx16 & 0xFF), chunk);
+        ok = m_conn->sendFrame(frame, &err);
+    }
+    if (ok) {
+        log(QStringLiteral("[块 %1] 发送 %2 字节 OK").arg(m_blockIndex).arg(thisChunk));
+        m_totalSent += thisChunk;
     } else {
-        log(QStringLiteral("[块 %1] 发送失败/模拟").arg(blockIndex));
+        log(QStringLiteral("[块 %1] 发送失败/模拟：%2").arg(m_blockIndex).arg(err));
     }
 
     m_sentOffset += thisChunk;
@@ -198,15 +176,9 @@ void DeviceUpgradePage::sendNextChunk()
     ui->progressStatusLabel->setText(QStringLiteral("进度 %1%  (%2/%3)").arg(pct).arg(m_sentOffset).arg(m_firmware.size()));
 }
 
-void DeviceUpgradePage::updateConnStatus(bool open)
+void DeviceUpgradePage::updateConnStatus(bool connected)
 {
-    if (open) {
-        ui->connStatusLabel->setText(QStringLiteral("● 已连接"));
-        ui->connectButton->setText(QStringLiteral("断开"));
-    } else {
-        ui->connStatusLabel->setText(QStringLiteral("● 未连接"));
-        ui->connectButton->setText(QStringLiteral("连接"));
-    }
+    ui->connStatusLabel->setText(connected ? QStringLiteral("● 已连接") : QStringLiteral("● 未连接"));
 }
 
 void DeviceUpgradePage::log(const QString &msg)
@@ -225,8 +197,5 @@ void DeviceUpgradePage::setControlsRunning(bool running)
     ui->startButton->setEnabled(!running);
     ui->cancelButton->setEnabled(running);
     ui->browseButton->setEnabled(!running);
-    ui->portCombo->setEnabled(!running);
-    ui->baudCombo->setEnabled(!running);
-    ui->connectButton->setEnabled(!running);
     ui->chunkSizeSpin->setEnabled(!running);
 }

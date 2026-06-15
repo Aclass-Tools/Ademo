@@ -1,5 +1,6 @@
 ﻿#include "apiclient.h"
 
+#include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -10,6 +11,8 @@ ApiClient::ApiClient(QObject *parent)
     : QObject(parent)
     // 默认本地后端地址，可通过 setBaseUrl() 覆盖。
     , m_baseUrl(QStringLiteral("http://127.0.0.1:8000"))
+    // 协议编辑后端（Flask）默认地址，独立端口。
+    , m_protocolBackendUrl(QStringLiteral("http://127.0.0.1:5000"))
     // 生命周期绑定到 ApiClient。
     , m_manager(new QNetworkAccessManager(this))
 {
@@ -78,6 +81,66 @@ void ApiClient::updatePoint(int id, int version, const QString &name, const QStr
         }
         // 通用传输/协议失败。
         emit requestFailed(reply->errorString());
+        reply->deleteLater();
+    });
+}
+
+void ApiClient::setProtocolBackendUrl(const QUrl &url)
+{
+    m_protocolBackendUrl = url;
+}
+
+QUrl ApiClient::protocolBackendUrl() const
+{
+    return m_protocolBackendUrl;
+}
+
+void ApiClient::checkProtocolBackend()
+{
+    // GET /api/health，2xx 视为可用。
+    const QUrl url = m_protocolBackendUrl.resolved(QUrl(QStringLiteral("/api/health")));
+    QNetworkReply *reply = m_manager->get(QNetworkRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const bool ok = (reply->error() == QNetworkReply::NoError);
+        if (!ok) {
+            emit requestFailed(reply->errorString());
+        }
+        emit protocolBackendReady(ok);
+        reply->deleteLater();
+    });
+}
+
+void ApiClient::listProtocols()
+{
+    const QUrl url = m_protocolBackendUrl.resolved(QUrl(QStringLiteral("/api/protocols")));
+    QNetworkReply *reply = m_manager->get(QNetworkRequest(url));
+    handleReply(reply, [this](QNetworkReply *okReply) {
+        emit protocolsListed(okReply->readAll());
+    });
+}
+
+void ApiClient::getProtocolBin(int protocolId, const QString &savePath)
+{
+    // 注意：bin 是二进制，不能走 JSON 解析路径，需直接落盘。
+    const QUrl url = m_protocolBackendUrl.resolved(
+        QUrl(QStringLiteral("/api/protocols/%1/bin").arg(protocolId)));
+    QNetworkReply *reply = m_manager->get(QNetworkRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, savePath]() {
+        if (reply->error() != QNetworkReply::NoError) {
+            emit requestFailed(reply->errorString());
+            reply->deleteLater();
+            return;
+        }
+        // 把整个响应体写入目标文件。
+        QFile file(savePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            emit requestFailed(QStringLiteral("无法写入文件：%1").arg(savePath));
+            reply->deleteLater();
+            return;
+        }
+        file.write(reply->readAll());
+        file.close();
+        emit protocolBinDownloaded(savePath);
         reply->deleteLater();
     });
 }

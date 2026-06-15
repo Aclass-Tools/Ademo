@@ -11,6 +11,8 @@ set(ACLASS_UI_FILES
     ${CMAKE_CURRENT_LIST_DIR}/terminalpage.ui
     ${CMAKE_CURRENT_LIST_DIR}/logpage.ui
     ${CMAKE_CURRENT_LIST_DIR}/pluginpage.ui
+    ${CMAKE_CURRENT_LIST_DIR}/ConnectionPage.ui
+    ${CMAKE_CURRENT_LIST_DIR}/CommandOperationPage.ui
 )
 
 # Let consumers get all .ui inputs transitively.

@@ -10,6 +10,8 @@ set(ACLASS_UI_PAGE_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/terminalpage.cpp
     ${CMAKE_CURRENT_LIST_DIR}/logpage.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pluginpage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/connectionpage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/commandoperationpage.cpp
 )
 
 set(ACLASS_UI_PAGE_HEADERS
@@ -22,6 +24,8 @@ set(ACLASS_UI_PAGE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/terminalpage.h
     ${CMAKE_CURRENT_LIST_DIR}/logpage.h
     ${CMAKE_CURRENT_LIST_DIR}/pluginpage.h
+    ${CMAKE_CURRENT_LIST_DIR}/connectionpage.h
+    ${CMAKE_CURRENT_LIST_DIR}/commandoperationpage.h
 )
 
 target_sources(AclassUiPageSources INTERFACE

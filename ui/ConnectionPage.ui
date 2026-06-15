@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ConnectionPage</class>
+ <widget class="QWidget" name="ConnectionPage">
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="spacing"><number>10</number></property>
+   <property name="leftMargin"><number>12</number></property>
+   <property name="topMargin"><number>12</number></property>
+   <property name="rightMargin"><number>12</number></property>
+   <property name="bottomMargin"><number>12</number></property>
+
+   <!-- 标题 -->
+   <item>
+    <widget class="QLabel" name="titleLabel">
+     <property name="text"><string>设备连接</string></property>
+    </widget>
+   </item>
+
+   <!-- 传输方式切换 + 连接/断开 -->
+   <item>
+    <layout class="QHBoxLayout" name="topBar">
+     <item><widget class="QLabel" name="modeLabel"><property name="text"><string>传输方式：</string></property></widget></item>
+     <item><widget class="QComboBox" name="modeCombo"/></item>
+     <item><widget class="QPushButton" name="refreshPortsButton"><property name="text"><string>刷新端口</string></property></widget></item>
+     <item><spacer name="topBarSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+     <item><widget class="QPushButton" name="connectButton"><property name="text"><string>连接</string></property></widget></item>
+    </layout>
+   </item>
+
+   <!-- 配置区：串口/网口 切换 -->
+   <item>
+    <widget class="QStackedWidget" name="configStack">
+     <property name="currentIndex"><number>0</number></property>
+
+     <!-- 串口配置 -->
+     <widget class="QWidget" name="pageSerial">
+      <layout class="QFormLayout" name="serialForm">
+       <item row="0" column="0"><widget class="QLabel" name="portLabel"><property name="text"><string>端口：</string></property></widget></item>
+       <item row="0" column="1"><widget class="QComboBox" name="portCombo"/></item>
+       <item row="1" column="0"><widget class="QLabel" name="baudLabel"><property name="text"><string>波特率：</string></property></widget></item>
+       <item row="1" column="1"><widget class="QComboBox" name="baudCombo"/></item>
+       <item row="2" column="0"><widget class="QLabel" name="dataBitsLabel"><property name="text"><string>数据位：</string></property></widget></item>
+       <item row="2" column="1"><widget class="QComboBox" name="dataBitsCombo"/></item>
+       <item row="3" column="0"><widget class="QLabel" name="parityLabel"><property name="text"><string>校验位：</string></property></widget></item>
+       <item row="3" column="1"><widget class="QComboBox" name="parityCombo"/></item>
+       <item row="4" column="0"><widget class="QLabel" name="stopBitsLabel"><property name="text"><string>停止位：</string></property></widget></item>
+       <item row="4" column="1"><widget class="QComboBox" name="stopBitsCombo"/></item>
+       <item row="5" column="0"><widget class="QLabel" name="flowLabel"><property name="text"><string>流控：</string></property></widget></item>
+       <item row="5" column="1"><widget class="QComboBox" name="flowCombo"/></item>
+      </layout>
+     </widget>
+
+     <!-- 网口配置 -->
+     <widget class="QWidget" name="pageEthernet">
+      <layout class="QFormLayout" name="ethernetForm">
+       <item row="0" column="0"><widget class="QLabel" name="ipLabel"><property name="text"><string>IP 地址：</string></property></widget></item>
+       <item row="0" column="1"><widget class="QLineEdit" name="ipEdit"><property name="text"><string>192.168.1.100</string></property></widget></item>
+       <item row="1" column="0"><widget class="QLabel" name="portNetLabel"><property name="text"><string>端口：</string></property></widget></item>
+       <item row="1" column="1"><widget class="QLineEdit" name="portNetEdit"><property name="text"><string>502</string></property></widget></item>
+       <item row="2" column="1"><widget class="QLabel" name="ethernetTip"><property name="text"><string>当前为 TCP Socket 连接模式（默认 502 为 Modbus TCP 端口）。</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+
+   <!-- 连接状态 -->
+   <item>
+    <widget class="QLabel" name="statusLabel">
+     <property name="text"><string>状态：未连接</string></property>
+     <property name="wordWrap"><bool>true</bool></property>
+    </widget>
+   </item>
+
+   <item><spacer name="verticalSpacer"><property name="orientation"><enum>Qt::Vertical</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property></spacer></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

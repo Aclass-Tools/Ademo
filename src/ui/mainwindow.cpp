@@ -20,6 +20,9 @@
 #include "ui/pages/terminalpage.h"
 #include "ui/pages/logpage.h"
 #include "ui/pages/pluginpage.h"
+#include "ui/pages/connectionpage.h"
+#include "ui/pages/commandoperationpage.h"
+#include "services/connectionmanager.h"
 #include "ui/theme/thememanager.h"
 #include "ui_mainwindow.h"
 
@@ -45,6 +48,8 @@ MainWindow::MainWindow(QWidget *parent)
     // 基础传输客户端。
     m_apiClient = new ApiClient(this);
     m_wsClient = new WebSocketClient(this);
+    // 全局共享连接管理器：所有页面通过它收发，不再各自持有串口。
+    m_connManager = new services::ConnectionManager(this);
     // 创建跨页面共享的项目摘要上下文（同一份智能指针在各页面间传递）。
     m_projectSummaryContext = std::make_shared<ProjectSummaryContext>();
 
@@ -70,8 +75,9 @@ MainWindow::MainWindow(QWidget *parent)
         closeTabByWidget(tabWidget);
     });
     connect(ui->mainTabWidget, &QTabWidget::currentChanged, this, &MainWindow::onCurrentTabChanged);
-    ui->btnToolHome->setChecked(true);
-    openPageTab(PageKey::Home);
+    // 启动默认进入协议调试页（首页按钮已隐藏，不再作为默认页）。
+    ui->btnProtocolDebug->setChecked(true);
+    openPageTab(PageKey::ProtocolDebug);
 
     // 当前阶段主界面不绑定通信层回调；首页数据读取由 HomePage 内部完成。
 }
@@ -111,6 +117,11 @@ void MainWindow::setupPages()
     initNavButton(ui->btnLogExport);
     initNavButton(ui->btnPluginScript);
 
+    // 导航精简：隐藏指向冗余页（首页/外挂脚本）的按钮。
+    // 首页仍作为启动占位与项目上下文载体保留，但不暴露导航入口。
+    ui->btnToolHome->setVisible(false);
+    ui->btnPluginScript->setVisible(false);
+
     // 启动时先隐藏全部标签页，后续由用户点击按钮按需打开。
     while (ui->mainTabWidget->count() > 0) {
         ui->mainTabWidget->removeTab(0);
@@ -127,7 +138,7 @@ void MainWindow::setupPages()
         openPageTab(PageKey::ProtocolDebug);
     });
     connect(ui->btnDeviceConnect, &QToolButton::clicked, this, [this]() {
-        openPageTab(PageKey::ProtocolExport);
+        openPageTab(PageKey::Connection);
     });
     connect(ui->btnDeviceUpgrade, &QToolButton::clicked, this, [this]() {
         openPageTab(PageKey::DeviceUpgrade);
@@ -136,7 +147,7 @@ void MainWindow::setupPages()
         openPageTab(PageKey::Terminal);
     });
     connect(ui->btnLogExport, &QToolButton::clicked, this, [this]() {
-        openPageTab(PageKey::Log);
+        openPageTab(PageKey::CommandOperation);
     });
     connect(ui->btnPluginScript, &QToolButton::clicked, this, [this]() {
         openPageTab(PageKey::Plugin);
@@ -238,13 +249,17 @@ void MainWindow::onCurrentTabChanged(int index)
     } else if (page == ui->pageProtocolDebug) {
         activatedPage = m_protocolDebugPage;
     } else if (page == ui->pageProtocolExport) {
-        activatedPage = m_protocolExportPage;
+        // 该容器由 设备连接(主) 与 协议导出(将移除) 复用；谁存在激活谁。
+        activatedPage = m_connectionPage ? static_cast<PlaceholderPageBase *>(m_connectionPage)
+                                         : static_cast<PlaceholderPageBase *>(m_protocolExportPage);
     } else if (page == ui->pageDeviceUpgrade) {
         activatedPage = m_deviceUpgradePage;
     } else if (page == ui->pageTerminal) {
         activatedPage = m_terminalPage;
     } else if (page == ui->pageLog) {
-        activatedPage = m_logPage;
+        // 该容器由 指令操作(主) 与 日志(将移除) 复用；谁存在激活谁。
+        activatedPage = m_commandOpPage ? static_cast<PlaceholderPageBase *>(m_commandOpPage)
+                                        : static_cast<PlaceholderPageBase *>(m_logPage);
     } else if (page == ui->pagePlugin) {
         activatedPage = m_pluginPage;
     }
@@ -299,6 +314,19 @@ void MainWindow::openPageTab(PageKey pageKey)
         tabWidget = ui->pagePlugin;
         tabTitle = QStringLiteral("外挂脚本");
         break;
+    case PageKey::Connection:
+        // 设备连接页复用 pageProtocolExport 容器（btnDeviceConnect 槽位）。
+        // ProtocolExport 页后续会移除（Step7），此容器归连接页使用。
+        ensureConnectionPage();
+        tabWidget = ui->pageProtocolExport;
+        tabTitle = QStringLiteral("设备连接");
+        break;
+    case PageKey::CommandOperation:
+        // 指令操作页复用 pageLog 容器（btnLogExport 槽位）。
+        ensureCommandOperationPage();
+        tabWidget = ui->pageLog;
+        tabTitle = QStringLiteral("指令操作");
+        break;
     }
 
     if (!tabWidget) {
@@ -342,8 +370,11 @@ void MainWindow::closeTabByWidget(QWidget *tabWidget)
         delete m_protocolDebugPage;
         m_protocolDebugPage = nullptr;
     } else if (tabWidget == ui->pageProtocolExport) {
+        // 该容器由 协议导出(将移除) 与 设备连接 页复用，两者都可能存在。
         delete m_protocolExportPage;
         m_protocolExportPage = nullptr;
+        delete m_connectionPage;
+        m_connectionPage = nullptr;
     } else if (tabWidget == ui->pageDeviceUpgrade) {
         delete m_deviceUpgradePage;
         m_deviceUpgradePage = nullptr;
@@ -351,8 +382,11 @@ void MainWindow::closeTabByWidget(QWidget *tabWidget)
         delete m_terminalPage;
         m_terminalPage = nullptr;
     } else if (tabWidget == ui->pageLog) {
+        // 该容器由 日志(将移除) 与 指令操作 页复用，两者都可能存在。
         delete m_logPage;
         m_logPage = nullptr;
+        delete m_commandOpPage;
+        m_commandOpPage = nullptr;
     } else if (tabWidget == ui->pagePlugin) {
         delete m_pluginPage;
         m_pluginPage = nullptr;
@@ -424,6 +458,7 @@ ProtocolDebugPage *MainWindow::ensureProtocolDebugPage()
     if (!m_protocolDebugPage) {
         m_protocolDebugPage = new ProtocolDebugPage(this);
         m_protocolDebugPage->setProjectContext(m_projectSummaryContext);
+        m_protocolDebugPage->setConnectionManager(m_connManager);
         if (ui->protocolDebugLayout) {
             ui->protocolDebugLayout->addWidget(m_protocolDebugPage);
         }
@@ -448,6 +483,7 @@ DeviceUpgradePage *MainWindow::ensureDeviceUpgradePage()
     if (!m_deviceUpgradePage) {
         m_deviceUpgradePage = new DeviceUpgradePage(this);
         m_deviceUpgradePage->setProjectContext(m_projectSummaryContext);
+        m_deviceUpgradePage->setConnectionManager(m_connManager);
         if (ui->deviceUpgradeLayout) {
             ui->deviceUpgradeLayout->addWidget(m_deviceUpgradePage);
         }
@@ -460,6 +496,7 @@ TerminalPage *MainWindow::ensureTerminalPage()
     if (!m_terminalPage) {
         m_terminalPage = new TerminalPage(this);
         m_terminalPage->setProjectContext(m_projectSummaryContext);
+        m_terminalPage->setConnectionManager(m_connManager);
         if (ui->terminalLayout) {
             ui->terminalLayout->addWidget(m_terminalPage);
         }
@@ -489,4 +526,30 @@ PluginPage *MainWindow::ensurePluginPage()
         }
     }
     return m_pluginPage;
+}
+
+ConnectionPage *MainWindow::ensureConnectionPage()
+{
+    if (!m_connectionPage) {
+        m_connectionPage = new ConnectionPage(this);
+        m_connectionPage->setConnectionManager(m_connManager);
+        // 复用 pageProtocolExport 容器的布局（btnDeviceConnect 槽位）。
+        if (ui->protocolExportLayout) {
+            ui->protocolExportLayout->addWidget(m_connectionPage);
+        }
+    }
+    return m_connectionPage;
+}
+
+CommandOperationPage *MainWindow::ensureCommandOperationPage()
+{
+    if (!m_commandOpPage) {
+        m_commandOpPage = new CommandOperationPage(this);
+        m_commandOpPage->setConnectionManager(m_connManager);
+        // 复用 pageLog 容器的布局（btnLogExport 槽位）。
+        if (ui->logLayout) {
+            ui->logLayout->addWidget(m_commandOpPage);
+        }
+    }
+    return m_commandOpPage;
 }

@@ -1,0 +1,4 @@
+﻿   Qt/MSBuild: 3.5.0.0
+   Qt: 6.8.0
+  MainWindow.cpp
+  QtIndustrialClient.vcxproj -> D:\Project\Spin\HeaterBeat\SPIHeartBeat\Client\QtIndustrialClient\x64\Debug\QtIndustrialClient.exe

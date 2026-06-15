@@ -42,3 +42,21 @@ python scripts\generate_sample_bin.py
 
 `tests/tmp/` 下有端到端测试程序，验证 Python 写入与 Qt 读取往返一致。
 详见 `tests/tmp/README.md`。
+
+## 从协议编辑后端下载（推荐流程）
+
+协议编辑已迁移到 Web。`.bin` 除了用上面的 Python 脚本生成，也可由
+`backend/`（Flask + SQLite）按数据库内容实时生成：
+
+```bat
+:: 启动后端（首次会自动建库 + 导入示例）
+backend\run_backend.bat
+
+:: 下载某协议的 bin 到本目录
+curl http://127.0.0.1:5000/api/protocols/1/bin -o sample_protocol.bin
+```
+
+- 后端 bin 生成逻辑见 `backend/bin_writer.py`，字节布局与本文件描述完全一致。
+- Qt 协议编辑页可直接「下载并加载 .bin」，自动落到本目录后再用 `BinProtocolLoader` 加载。
+- 详见 `backend/README.md`。
+

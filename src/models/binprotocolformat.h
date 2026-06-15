@@ -50,14 +50,25 @@ struct FieldDef {
     QVector<FieldDef> children;
 };
 
+// 传输封装协议类型（.bin 协议自带，决定 payload 外面用什么帧封装）。
+// 与 A0/A3 帧封装、Modbus 三种传输对应。
+// 持久化时编码进 flags 的低 2 位（见 binprotocolloader）。
+enum class TransportProtocol : quint8 {
+    A0 = 0,
+    A3 = 1,
+    Modbus = 2,
+};
+
 // 整个协议描述。
 struct BinProtocol {
     // 文件头字段（内存镜像，便于编辑/回写）。
     QString magic;            // 约定 "APROTO01"
     quint16 version = 1;      // 格式版本
-    quint16 flags = 0;        // 预留
+    quint16 flags = 0;        // 低 2 位编码 transport，其余预留
     QVector<FieldDef> fields; // 顶层字段表
     QString sourcePath;       // 来源文件路径（内存中可空）
+    // 传输封装协议（内存态；load/save 时与 flags 低 2 位互转）。
+    TransportProtocol transport = TransportProtocol::A0;
 
     // 计算整帧（不含嵌套展开）的最小字节数：取所有顶层字段末尾的最大值。
     // Struct 字段按自身 byteLength 计入。

@@ -1,25 +1,19 @@
 ﻿#include "protocoleditorpage.h"
 #include "ui_protocoleditorpage.h"
 #include "models/binprotocolformat.h"
-#include "models/protocolfieldtablemodel.h"
 #include "ui/theme/thememanager.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QDir>
-#include <QFileDialog>
-#include <QLineEdit>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QMessageBox>
 #include <QPushButton>
-#include <QSpinBox>
-#include <QTableView>
-
-namespace {
-// 类型下拉项，与 ProtocolFieldTableModel::stringToType 对应。
-const char *kTypeNames[] = {
-    "UInt8", "UInt16", "UInt32", "Int8", "Int16", "Int32",
-    "Float32", "Float64", "ByteArray", "BitField", "String", "Struct"
-};
-}
+#include <QRegularExpression>
+#include <QUrl>
 
 ProtocolEditorPage::ProtocolEditorPage(QWidget *parent)
     : PlaceholderPageBase(parent)
@@ -28,70 +22,28 @@ ProtocolEditorPage::ProtocolEditorPage(QWidget *parent)
     ui->setupUi(this);
     setStyleSheet(ThemeManager::contentPageStyle(ThemeManager::palette(ThemeKind::IndustrialBlue)));
 
-    m_model = new ProtocolFieldTableModel(this);
-    ui->fieldsTable->setModel(m_model);
-    ui->fieldsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->fieldsTable->setSelectionMode(QAbstractItemView::SingleSelection);
-    ui->fieldsTable->horizontalHeader()->setStretchLastSection(true);
+    // 页面自持一个 ApiClient（保持现有页面"自包含"模式）。
+    m_api = new ApiClient(this);
 
-    for (const char *t : kTypeNames) {
-        ui->typeCombo->addItem(QString::fromLatin1(t));
-    }
+    // 按钮接线。
+    connect(ui->openWebButton, &QPushButton::clicked, this, &ProtocolEditorPage::openWebEditor);
+    connect(ui->refreshButton, &QPushButton::clicked, this, &ProtocolEditorPage::refreshProtocols);
+    connect(ui->downloadButton, &QPushButton::clicked, this, &ProtocolEditorPage::downloadAndLoadCurrent);
 
-    // 工具栏。
-    connect(ui->newButton, &QPushButton::clicked, this, &ProtocolEditorPage::newProtocol);
-    connect(ui->openButton, &QPushButton::clicked, this, &ProtocolEditorPage::openFile);
-    connect(ui->saveButton, &QPushButton::clicked, this, &ProtocolEditorPage::saveFile);
-    connect(ui->saveAsButton, &QPushButton::clicked, this, &ProtocolEditorPage::saveAsFile);
-    connect(ui->sampleButton, &QPushButton::clicked, this, &ProtocolEditorPage::loadSample);
+    // ApiClient 信号。
+    connect(m_api, &ApiClient::protocolBackendReady, this, &ProtocolEditorPage::onBackendReady);
+    connect(m_api, &ApiClient::protocolsListed, this, &ProtocolEditorPage::onProtocolsListed);
+    connect(m_api, &ApiClient::protocolBinDownloaded, this, &ProtocolEditorPage::onBinDownloaded);
+    connect(m_api, &ApiClient::requestFailed, this, &ProtocolEditorPage::onRequestFailed);
 
-    // 字段操作。
-    connect(ui->addButton, &QPushButton::clicked, this, [this]() {
-        FieldDef f;
-        f.name = QStringLiteral("field%1").arg(m_model->rowCount() + 1);
-        f.type = FieldType::UInt8;
-        f.byteLength = 1;
-        m_model->addField(f);
-        refreshFrameSize();
-        // 选中并滚动到新行。
-        const int row = m_model->rowCount() - 1;
-        ui->fieldsTable->selectRow(row);
-        onSelectionChanged();
-    });
-    connect(ui->removeButton, &QPushButton::clicked, this, [this]() {
-        const QModelIndex idx = ui->fieldsTable->currentIndex();
-        if (idx.isValid()) {
-            m_model->removeRows(idx.row(), 1);
-            refreshFrameSize();
-        }
-    });
-    connect(ui->upButton, &QPushButton::clicked, this, [this]() {
-        const QModelIndex idx = ui->fieldsTable->currentIndex();
-        if (idx.isValid()) {
-            m_model->moveRow(idx.row(), true);
-            refreshFrameSize();
-        }
-    });
-    connect(ui->downButton, &QPushButton::clicked, this, [this]() {
-        const QModelIndex idx = ui->fieldsTable->currentIndex();
-        if (idx.isValid()) {
-            m_model->moveRow(idx.row(), false);
-            refreshFrameSize();
-        }
+    // 选中协议后启用下载按钮。
+    connect(ui->protocolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+        ui->downloadButton->setEnabled(index >= 0 && m_api->protocolBackendUrl().isValid());
     });
 
-    // 选中行 → 镜像到详情面板。
-    connect(ui->fieldsTable->selectionModel(), &QItemSelectionModel::currentChanged,
-            this, [this](const QModelIndex &) { onSelectionChanged(); });
-
-    // 应用详情面板回写表格。
-    connect(ui->applyDetailButton, &QPushButton::clicked, this, &ProtocolEditorPage::applyDetailToCurrentRow);
-
-    // 模型变化时刷新帧大小。
-    connect(m_model, &ProtocolFieldTableModel::dataChanged, this, [this]() { refreshFrameSize(); });
-
-    // 初始为空协议。
-    newProtocol();
+    ui->downloadButton->setEnabled(false);
+    ui->backendStatus->setText(QStringLiteral("后端：未检测"));
+    ui->summaryLabel->setText(QStringLiteral("提示：先点“打开 Web 编辑器”在浏览器里编辑，保存后回到这里下载 .bin。"));
 }
 
 ProtocolEditorPage::~ProtocolEditorPage()
@@ -99,132 +51,137 @@ ProtocolEditorPage::~ProtocolEditorPage()
     delete ui;
 }
 
-void ProtocolEditorPage::newProtocol()
+void ProtocolEditorPage::onPageActivated()
 {
-    BinProtocol proto;
-    proto.magic = QStringLiteral("APROTO01");
-    proto.version = 1;
-    m_loader.setProtocol(proto);
-    m_model->setFields(proto.fields);
-    setFilePath(QString());
-    refreshFrameSize();
-}
-
-void ProtocolEditorPage::openFile()
-{
-    const QString startDir = QCoreApplication::applicationDirPath() + QStringLiteral("/../data/protocols");
-    const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("打开协议 .bin"),
-        QDir(startDir).exists() ? startDir : QString(),
-        QStringLiteral("协议描述 (*.bin);;所有文件 (*.*)"));
-    if (path.isEmpty()) {
-        return;
-    }
-    if (!m_loader.load(path)) {
-        ui->filePathLabel->setText(QStringLiteral("打开失败：%1").arg(m_loader.lastError()));
-        return;
-    }
-    m_model->setFields(m_loader.protocol().fields);
-    setFilePath(path);
-    refreshFrameSize();
-}
-
-void ProtocolEditorPage::saveFile()
-{
-    if (m_filePath.isEmpty()) {
-        saveAsFile();
-        return;
-    }
-    BinProtocol proto = m_loader.protocol();
-    proto.fields = m_model->fields();
-    m_loader.setProtocol(proto);
-    if (m_loader.save(m_filePath)) {
-        ui->filePathLabel->setText(m_filePath);
+    // 切到本页时探活一次；已探活则只刷新列表。
+    if (!m_backendChecked) {
+        ui->backendStatus->setText(QStringLiteral("后端：检测中…"));
+        m_api->checkProtocolBackend();
     } else {
-        ui->filePathLabel->setText(QStringLiteral("保存失败。"));
+        refreshProtocols();
     }
 }
 
-void ProtocolEditorPage::saveAsFile()
+void ProtocolEditorPage::openWebEditor()
 {
-    const QString path = QFileDialog::getSaveFileName(this, QStringLiteral("另存为 .bin"),
-        QStringLiteral("protocol.bin"),
-        QStringLiteral("协议描述 (*.bin)"));
-    if (path.isEmpty()) {
+    // 用系统默认浏览器打开 Web 编辑器（无需 WebEngine）。
+    const QUrl url = m_api->protocolBackendUrl();
+    if (!url.isValid() || url.isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("打开失败"), QStringLiteral("后端地址无效。"));
         return;
     }
-    BinProtocol proto = m_loader.protocol();
-    proto.fields = m_model->fields();
-    m_loader.setProtocol(proto);
-    if (m_loader.save(path)) {
-        setFilePath(path);
+    if (!QDesktopServices::openUrl(url)) {
+        QMessageBox::warning(this, QStringLiteral("打开失败"),
+            QStringLiteral("无法调用系统浏览器，请检查默认浏览器设置。"));
+    }
+}
+
+void ProtocolEditorPage::refreshProtocols()
+{
+    if (!m_backendChecked) {
+        // 还没探活，先探活（onBackendReady 里会自动拉列表）。
+        m_api->checkProtocolBackend();
+        return;
+    }
+    ui->refreshButton->setEnabled(false);
+    m_api->listProtocols();
+}
+
+void ProtocolEditorPage::downloadAndLoadCurrent()
+{
+    const int idx = ui->protocolCombo->currentIndex();
+    const int pid = ui->protocolCombo->currentData().toInt();
+    if (idx < 0 || pid <= 0) {
+        return;
+    }
+    // 落盘目录：applicationDirPath()/../data/protocols，与协议调试页默认目录一致。
+    const QString dir = QCoreApplication::applicationDirPath()
+        + QStringLiteral("/../data/protocols");
+    QDir().mkpath(dir);
+    QString name = m_protocolNames.value(pid, QStringLiteral("protocol_%1").arg(pid));
+    // 去掉名字里不安全的字符，避免文件名问题。
+    name.remove(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|]")));
+    const QString savePath = dir + QStringLiteral("/") + name + QStringLiteral(".bin");
+
+    ui->summaryLabel->setText(QStringLiteral("正在下载 %1 …").arg(savePath));
+    ui->downloadButton->setEnabled(false);
+    m_api->getProtocolBin(pid, savePath);
+}
+
+void ProtocolEditorPage::onBackendReady(bool ready)
+{
+    m_backendChecked = true;
+    if (ready) {
+        ui->backendStatus->setText(QStringLiteral("后端：已连接（%1）").arg(m_api->protocolBackendUrl().toString()));
+        // 连上后自动拉一次列表。
+        m_api->listProtocols();
     } else {
-        ui->filePathLabel->setText(QStringLiteral("保存失败。"));
+        ui->backendStatus->setText(QStringLiteral("后端：未连接（请先启动 backend\\run_backend.bat）"));
+        ui->protocolCombo->clear();
+        ui->downloadButton->setEnabled(false);
     }
 }
 
-void ProtocolEditorPage::loadSample()
+void ProtocolEditorPage::onProtocolsListed(const QByteArray &payload)
 {
-    BinProtocol proto = BinProtocolLoader::makeSample();
-    m_loader.setProtocol(proto);
-    m_model->setFields(proto.fields);
-    setFilePath(QString());
-    ui->filePathLabel->setText(QStringLiteral("（示例协议，未保存）"));
-    refreshFrameSize();
+    ui->refreshButton->setEnabled(true);
+    // 解析 [{id,name,...}]，填充下拉框（显示 name，存 id）。
+    const QJsonDocument doc = QJsonDocument::fromJson(payload);
+    const QJsonArray arr = doc.array();
+
+    ui->protocolCombo->clear();
+    m_protocolNames.clear();
+    for (const QJsonValue &v : arr) {
+        const QJsonObject o = v.toObject();
+        const int id = o.value(QStringLiteral("id")).toInt();
+        const QString name = o.value(QStringLiteral("name")).toString();
+        if (id <= 0) {
+            continue;
+        }
+        m_protocolNames.insert(id, name);
+        ui->protocolCombo->addItem(name, id);
+    }
+    if (ui->protocolCombo->count() == 0) {
+        ui->summaryLabel->setText(QStringLiteral("后端暂无协议。请到 Web 编辑器新建。"));
+    } else {
+        ui->summaryLabel->setText(QStringLiteral("共 %1 个协议，选中后点“下载并加载 .bin”。").arg(ui->protocolCombo->count()));
+    }
+    ui->downloadButton->setEnabled(ui->protocolCombo->count() > 0);
 }
 
-void ProtocolEditorPage::applyDetailToCurrentRow()
+void ProtocolEditorPage::onBinDownloaded(const QString &localPath)
 {
-    const QModelIndex idx = ui->fieldsTable->currentIndex();
-    if (!idx.isValid()) {
+    ui->downloadButton->setEnabled(ui->protocolCombo->count() > 0);
+    // 用 BinProtocolLoader 加载下载下来的 bin，作为下载成功的校验。
+    if (!m_loader.load(localPath)) {
+        ui->summaryLabel->setText(QStringLiteral("下载完成但加载失败：%1").arg(m_loader.lastError()));
         return;
     }
-    const int row = idx.row();
-    // 用 removeRows + addField 的方式回写到指定行，保持顺序。
-    QVector<FieldDef> fields = m_model->fields();
-    if (row < 0 || row >= fields.size()) {
-        return;
+    showLoadedSummary(m_loader.protocol());
+}
+
+void ProtocolEditorPage::onRequestFailed(const QString &message)
+{
+    ui->refreshButton->setEnabled(true);
+    ui->downloadButton->setEnabled(ui->protocolCombo->count() > 0);
+    ui->summaryLabel->setText(QStringLiteral("请求失败：%1").arg(message));
+}
+
+void ProtocolEditorPage::showLoadedSummary(const BinProtocol &proto)
+{
+    // 字段数（含子字段），给用户一个直观确认。
+    int topLevel = 0;
+    int total = 0;
+    for (const FieldDef &f : proto.fields) {
+        ++topLevel;
+        ++total;
+        total += f.children.size();
     }
-    FieldDef &f = fields[row];
-    f.name = ui->nameEdit->text();
-    bool ok = false;
-    f.type = ProtocolFieldTableModel::stringToType(ui->typeCombo->currentText(), &ok);
-    f.byteOffset = quint32(ui->offsetSpin->value());
-    f.byteLength = quint16(ui->lengthSpin->value());
-    f.bitOffset = quint8(ui->bitOffsetSpin->value());
-    f.bitLength = quint8(ui->bitLengthSpin->value());
-    f.comment = ui->commentEdit->text();
-    m_model->setFields(fields);
-    // 保持选中。
-    ui->fieldsTable->selectRow(row);
-    refreshFrameSize();
-}
-
-void ProtocolEditorPage::onSelectionChanged()
-{
-    const QModelIndex idx = ui->fieldsTable->currentIndex();
-    if (!idx.isValid()) {
-        return;
-    }
-    const FieldDef f = m_model->fieldAt(idx.row());
-    ui->nameEdit->setText(f.name);
-    ui->typeCombo->setCurrentText(ProtocolFieldTableModel::typeToString(f.type));
-    ui->offsetSpin->setValue(int(f.byteOffset));
-    ui->lengthSpin->setValue(int(f.byteLength));
-    ui->bitOffsetSpin->setValue(int(f.bitOffset));
-    ui->bitLengthSpin->setValue(int(f.bitLength));
-    ui->commentEdit->setText(f.comment);
-}
-
-void ProtocolEditorPage::refreshFrameSize()
-{
-    BinProtocol proto = m_loader.protocol();
-    proto.fields = m_model->fields();
-    const quint32 size = proto.frameSize();
-    ui->frameSizeLabel->setText(QStringLiteral("帧大小：%1 字节").arg(size));
-}
-
-void ProtocolEditorPage::setFilePath(const QString &path)
-{
-    m_filePath = path;
-    ui->filePathLabel->setText(path.isEmpty() ? QStringLiteral("（未保存）") : path);
+    ui->summaryLabel->setText(
+        QStringLiteral("已加载：%1\n帧大小：%2 字节 | 顶层字段 %3 个（含子字段共 %4 个） | version %5")
+            .arg(proto.sourcePath)
+            .arg(proto.frameSize())
+            .arg(topLevel)
+            .arg(total)
+            .arg(proto.version));
 }

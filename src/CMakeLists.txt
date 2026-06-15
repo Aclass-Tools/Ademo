@@ -2,6 +2,7 @@
 
 add_subdirectory(network)
 add_subdirectory(models)
+add_subdirectory(services)
 add_subdirectory(ui)
 
 set(ACLASS_CORE_SOURCES
@@ -17,6 +18,7 @@ qt_add_executable(${ACLASS_TARGET}
 target_link_libraries(${ACLASS_TARGET} PRIVATE
     AclassNetworkSources
     AclassModelSources
+    AclassServiceSources
     AclassUiSources
     AclassToolUiFiles
     Qt${QT_VERSION_MAJOR}::Widgets
@@ -24,6 +26,7 @@ target_link_libraries(${ACLASS_TARGET} PRIVATE
     Qt${QT_VERSION_MAJOR}::WebSockets
     Qt${QT_VERSION_MAJOR}::QuickWidgets
     Qt${QT_VERSION_MAJOR}::SerialPort
+    Qt${QT_VERSION_MAJOR}::SerialBus
 )
 
 target_include_directories(${ACLASS_TARGET} PRIVATE
@@ -31,6 +34,7 @@ target_include_directories(${ACLASS_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/network
     ${CMAKE_CURRENT_SOURCE_DIR}/models
+    ${CMAKE_CURRENT_SOURCE_DIR}/services
 )
 
 set_target_properties(${ACLASS_TARGET} PROPERTIES

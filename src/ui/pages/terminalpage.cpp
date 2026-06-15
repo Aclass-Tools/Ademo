@@ -1,10 +1,10 @@
 ﻿#include "terminalpage.h"
 #include "ui_terminalpage.h"
 #include "models/framecodec.h"
+#include "services/connectionmanager.h"
 #include "ui/theme/thememanager.h"
 
 #include <QCheckBox>
-#include <QComboBox>
 #include <QDateTime>
 #include <QLabel>
 #include <QLineEdit>
@@ -21,26 +21,11 @@ TerminalPage::TerminalPage(QWidget *parent)
     // 有实际内容的页面使用 contentPageStyle，而非占位页样式。
     setStyleSheet(ThemeManager::contentPageStyle(ThemeManager::palette(ThemeKind::IndustrialBlue)));
 
-    // 初始化各下拉框候选项。
-    ui->dataBitsCombo->addItems({ QStringLiteral("8"), QStringLiteral("7"), QStringLiteral("6"), QStringLiteral("5") });
-    ui->stopBitsCombo->addItems({ QStringLiteral("1"), QStringLiteral("1.5"), QStringLiteral("2") });
-    ui->parityCombo->addItems({ QStringLiteral("无"), QStringLiteral("偶"), QStringLiteral("奇"), QStringLiteral("空号"), QStringLiteral("标记") });
-    ui->flowCombo->addItems({ QStringLiteral("无"), QStringLiteral("RTS/CTS"), QStringLiteral("XON/XOFF"), QStringLiteral("全部") });
-    ui->dataBitsCombo->setCurrentIndex(0);
-    ui->stopBitsCombo->setCurrentIndex(0);
-    ui->parityCombo->setCurrentIndex(0);
-    ui->flowCombo->setCurrentIndex(0);
-    populateBaudRates();
-
-    refreshPorts();
-
     // 默认勾选：Hex 显示关、时间戳开、自动换行开。
     ui->recvTimestampCheck->setChecked(true);
     ui->recvAutoNewlineCheck->setChecked(true);
 
     // 信号接线。
-    connect(ui->refreshPortsButton, &QPushButton::clicked, this, &TerminalPage::refreshPorts);
-    connect(ui->openPortButton, &QPushButton::clicked, this, &TerminalPage::openOrClosePort);
     connect(ui->sendButton, &QPushButton::clicked, this, &TerminalPage::onSendButtonClicked);
     connect(ui->recvClearButton, &QPushButton::clicked, ui->recvTextEdit, &QTextEdit::clear);
     connect(ui->resetCountButton, &QPushButton::clicked, this, [this]() {
@@ -52,13 +37,12 @@ TerminalPage::TerminalPage(QWidget *parent)
     connect(ui->timerToggleButton, &QPushButton::toggled, this, &TerminalPage::onTimerToggled);
     connect(&m_timer, &QTimer::timeout, this, &TerminalPage::onSendButtonClicked);
 
-    // SerialPortManager 事件面。
-    connect(&m_serial, &SerialPortManager::dataReceived, this, &TerminalPage::onDataReceived);
-    connect(&m_serial, &SerialPortManager::portOpened, this, [this]() { updateConnStatus(true); });
-    connect(&m_serial, &SerialPortManager::portClosed, this, [this]() { updateConnStatus(false); });
-    connect(&m_serial, &SerialPortManager::errorOccurred, this, [this](const QString &msg) {
-        ui->recvTextEdit->append(QStringLiteral("[错误] %1").arg(msg));
-    });
+    // 串口配置区已迁移到「设备连接」页：隐藏本页的配置/打开控件。
+    // 仅保留收发区，避免与连接页重复管理同一物理连接。
+    // （控件本身仍由 ui 文件创建，这里仅隐藏，不删除，保持 ui 文件稳定。）
+    ui->openPortButton->setVisible(false);
+    ui->refreshPortsButton->setVisible(false);
+    ui->connStatusLabel->setText(QStringLiteral("● 待连接（请在设备连接页建立连接）"));
 
     updateConnStatus(false);
 }
@@ -68,70 +52,40 @@ TerminalPage::~TerminalPage()
     delete ui;
 }
 
-void TerminalPage::onPageActivated()
+void TerminalPage::setConnectionManager(services::ConnectionManager *mgr)
 {
-    // 每次切回本页刷新端口，便于热插拔识别。
-    refreshPorts();
-}
-
-void TerminalPage::refreshPorts()
-{
-    const QString prev = ui->portNameCombo->currentText();
-    ui->portNameCombo->blockSignals(true);
-    ui->portNameCombo->clear();
-    const QVariantList ports = SerialPortManager::availablePorts();
-    if (ports.isEmpty()) {
-        ui->portNameCombo->addItem(QStringLiteral("（无可用串口）"));
-    } else {
-        for (const QVariant &v : ports) {
-            const QVariantMap m = v.toMap();
-            const QString name = m.value(QStringLiteral("portName")).toString();
-            const QString desc = m.value(QStringLiteral("description")).toString();
-            ui->portNameCombo->addItem(desc.isEmpty() ? name : QStringLiteral("%1 - %2").arg(name, desc), name);
-        }
-    }
-    // 恢复之前选择。
-    const int idx = ui->portNameCombo->findData(prev);
-    if (idx >= 0) {
-        ui->portNameCombo->setCurrentIndex(idx);
-    }
-    ui->portNameCombo->blockSignals(false);
-}
-
-void TerminalPage::populateBaudRates()
-{
-    const QList<qint32> stdBauds = { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
-    for (qint32 b : stdBauds) {
-        ui->baudCombo->addItem(QString::number(b), b);
-    }
-    ui->baudCombo->setCurrentIndex(stdBauds.indexOf(115200));
-}
-
-void TerminalPage::applyConfigToSerial()
-{
-    // 取端口名称：优先 userData，避免带描述文字。
-    const QVariant data = ui->portNameCombo->currentData();
-    m_serial.setPortName(data.isValid() ? data.toString() : ui->portNameCombo->currentText());
-    m_serial.setBaudRate(ui->baudCombo->currentData().toInt());
-    m_serial.setDataBits(ui->dataBitsCombo->currentText().toInt());
-    m_serial.setParity(ui->parityCombo->currentIndex());
-    m_serial.setStopBits(ui->stopBitsCombo->currentIndex());
-    m_serial.setFlowControl(ui->flowCombo->currentIndex());
-}
-
-void TerminalPage::openOrClosePort()
-{
-    if (m_serial.isOpen()) {
-        m_serial.closePort();
+    m_conn = mgr;
+    if (!m_conn) {
         return;
     }
-    applyConfigToSerial();
-    m_serial.openPort();
+    // 接收：订阅裸字节流。
+    connect(m_conn, &services::ConnectionManager::rawBytesReceived,
+            this, &TerminalPage::onDataReceived);
+    // 连接状态。
+    connect(m_conn, &services::ConnectionManager::connectionChanged,
+            this, [this](bool connected, services::TransportMode) {
+        updateConnStatus(connected);
+    });
+    // 错误。
+    connect(m_conn, &services::ConnectionManager::errorOccurred, this, [this](const QString &msg) {
+        ui->recvTextEdit->append(QStringLiteral("[错误] %1").arg(msg));
+    });
+    // 同步当前状态。
+    updateConnStatus(m_conn->isConnected());
+}
+
+void TerminalPage::onPageActivated()
+{
+    // 连接由全局管理，进入页面时只刷新状态显示。
+    if (m_conn) {
+        updateConnStatus(m_conn->isConnected());
+    }
 }
 
 void TerminalPage::onSendButtonClicked()
 {
-    if (!m_serial.isOpen()) {
+    if (!m_conn || !m_conn->isConnected()) {
+        ui->recvTextEdit->append(QStringLiteral("[提示] 未连接，请在设备连接页建立连接。"));
         return;
     }
     QByteArray payload;
@@ -150,10 +104,12 @@ void TerminalPage::onSendButtonClicked()
     if (payload.isEmpty()) {
         return;
     }
-    const qint64 n = m_serial.sendData(payload);
-    if (n > 0) {
-        m_txBytes += quint64(n);
+    QString err;
+    if (m_conn->sendRaw(payload, &err)) {
+        m_txBytes += quint64(payload.size());
         ui->txCountLabel->setText(QStringLiteral("TX: %1").arg(m_txBytes));
+    } else {
+        ui->recvTextEdit->append(QStringLiteral("[发送失败] %1").arg(err));
     }
 }
 
@@ -190,14 +146,12 @@ void TerminalPage::appendRecv(const QByteArray &data)
     ui->recvTextEdit->setTextCursor(c);
 }
 
-void TerminalPage::updateConnStatus(bool open)
+void TerminalPage::updateConnStatus(bool connected)
 {
-    if (open) {
+    if (connected) {
         ui->connStatusLabel->setText(QStringLiteral("● 已连接"));
-        ui->openPortButton->setText(QStringLiteral("关闭串口"));
     } else {
         ui->connStatusLabel->setText(QStringLiteral("● 未连接"));
-        ui->openPortButton->setText(QStringLiteral("打开串口"));
         if (m_timer.isActive()) {
             ui->timerToggleButton->setChecked(false);
         }
@@ -207,8 +161,8 @@ void TerminalPage::updateConnStatus(bool open)
 void TerminalPage::onTimerToggled(bool checked)
 {
     if (checked) {
-        if (!m_serial.isOpen()) {
-            ui->recvTextEdit->append(QStringLiteral("[提示] 请先打开串口。"));
+        if (!m_conn || !m_conn->isConnected()) {
+            ui->recvTextEdit->append(QStringLiteral("[提示] 未连接，无法定时发送。"));
             ui->timerToggleButton->setChecked(false);
             return;
         }

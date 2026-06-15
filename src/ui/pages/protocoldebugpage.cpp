@@ -3,15 +3,13 @@
 #include "models/binprotocolformat.h"
 #include "models/framecodec.h"
 #include "models/protocolfieldtablemodel.h"
+#include "services/connectionmanager.h"
 #include "ui/theme/thememanager.h"
 
-#include <QCheckBox>
-#include <QComboBox>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileDialog>
 #include <QFormLayout>
-#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTableWidget>
@@ -35,12 +33,10 @@ ProtocolDebugPage::ProtocolDebugPage(QWidget *parent)
     // 在 encodeInputsHost 上建立 QFormLayout，供动态字段输入使用。
     auto *form = new QFormLayout(ui->encodeInputsHost);
     form->setLabelAlignment(Qt::AlignRight);
-    // 容器垂直布局，避免空时高度塌陷。
     auto *hostLayout = new QVBoxLayout(ui->encodeInputsHost);
     hostLayout->setContentsMargins(0, 0, 0, 0);
     hostLayout->addLayout(form);
     hostLayout->addStretch(1);
-    // 让外部能通过 objectName 取到 form。
     form->setObjectName(QStringLiteral("encodeForm"));
 
     connect(ui->loadBinButton, &QPushButton::clicked, this, [this]() {
@@ -57,22 +53,11 @@ ProtocolDebugPage::ProtocolDebugPage(QWidget *parent)
     connect(ui->decodeButton, &QPushButton::clicked, this, &ProtocolDebugPage::onDecodeClicked);
     connect(ui->decodeClearButton, &QPushButton::clicked, ui->decodedTable, &QTableWidget::clearContents);
     connect(ui->decodeClearButton, &QPushButton::clicked, ui->decodeHexEdit, &QLineEdit::clear);
-    connect(ui->refreshPortsButton, &QPushButton::clicked, this, &ProtocolDebugPage::refreshPorts);
-    connect(ui->sendViaSerialCheck, &QCheckBox::toggled, this, [this](bool checked) {
-        ui->portCombo->setEnabled(checked);
-        ui->refreshPortsButton->setEnabled(checked);
-        if (checked) {
-            refreshPorts();
-        }
-    });
-    connect(&m_serial, &SerialPortManager::dataReceived, this, [this](const QByteArray &data) {
-        // 自动把串口收到的数据填入解帧输入框并尝试解帧。
-        ui->decodeHexEdit->setText(FrameCodec::toHexDisplay(data));
-        onDecodeClicked();
-    });
 
-    ui->portCombo->setEnabled(false);
-    ui->refreshPortsButton->setEnabled(false);
+    // 串口配置区已迁移到「设备连接」页：隐藏本页相关控件。
+    ui->sendViaSerialCheck->setVisible(false);
+    ui->refreshPortsButton->setVisible(false);
+    ui->portCombo->setVisible(false);
 }
 
 ProtocolDebugPage::~ProtocolDebugPage()
@@ -80,9 +65,18 @@ ProtocolDebugPage::~ProtocolDebugPage()
     delete ui;
 }
 
+void ProtocolDebugPage::setConnectionManager(services::ConnectionManager *mgr)
+{
+    m_conn = mgr;
+    if (m_conn) {
+        // 收到完整帧 → 去封装 → 解 payload → 刷新解帧表。
+        connect(m_conn, &services::ConnectionManager::frameReceived,
+                this, &ProtocolDebugPage::onFrameReceived);
+    }
+}
+
 void ProtocolDebugPage::onPageActivated()
 {
-    // 首次进入若未加载，提示用户加载示例。
     if (!m_loader.isLoaded()) {
         ui->filePathLabel->setText(QStringLiteral("（未加载，点击“加载示例”快速开始）"));
     }
@@ -114,7 +108,6 @@ void ProtocolDebugPage::rebuildEncodeInputs()
     if (!form) {
         return;
     }
-    // 清空旧控件。
     while (form->rowCount() > 0) {
         form->removeRow(0);
     }
@@ -123,7 +116,6 @@ void ProtocolDebugPage::rebuildEncodeInputs()
     const QVector<FieldDef> &fields = m_loader.protocol().fields;
     for (const FieldDef &f : fields) {
         if (f.type == FieldType::Struct) {
-            // 为每个子字段单独生成输入。
             for (const FieldDef &c : f.children) {
                 const QString key = QStringLiteral("%1.%2").arg(f.name, c.name);
                 auto *edit = new QLineEdit(ui->encodeInputsHost);
@@ -133,7 +125,6 @@ void ProtocolDebugPage::rebuildEncodeInputs()
             }
         } else {
             auto *edit = new QLineEdit(ui->encodeInputsHost);
-            // 给出合理默认值，便于立即组包。
             edit->setText(f.type == FieldType::String ? QStringLiteral("hello")
                 : (f.type == FieldType::ByteArray ? QStringLiteral("00 11 22 33 44 55")
                 : QStringLiteral("0")));
@@ -149,31 +140,38 @@ void ProtocolDebugPage::onEncodeClicked()
         ui->encodedHexEdit->setText(QStringLiteral("请先加载协议。"));
         return;
     }
+    // 1) 字段表层：字段值 → payload。
     QMap<QString, QVariant> values;
     for (auto it = m_inputs.constBegin(); it != m_inputs.constEnd(); ++it) {
         values.insert(it.key(), it.value()->text());
     }
-    const QByteArray frame = FrameCodec::encode(m_loader.protocol(), values);
+    const QByteArray payload = FrameCodec::encode(m_loader.protocol(), values);
+
+    // 2) 传输封装层：按协议自带的 transport 选择封装。
+    const TransportProtocol tp = m_loader.protocol().transport;
+    if (tp == TransportProtocol::Modbus) {
+        // Modbus 协议不走 ProtocolParser；提示用指令操作页或 Modbus 专用接口。
+        ui->encodedHexEdit->setText(
+            FrameCodec::toHexDisplay(payload) + QStringLiteral("   [Modbus 协议：payload 见上，请经指令操作页读写寄存器]"));
+        return;
+    }
+    const quint8 protoByte = (tp == TransportProtocol::A3) ? services::kProtocolA3 : services::kProtocolA0;
+    const QByteArray frame = services::ProtocolParser::buildWriteFrame(
+        protoByte, m_sourceId, m_targetId,
+        /*mainCommand*/ 0x00, /*subCommand*/ 0x00, payload);
     const QString hex = FrameCodec::toHexDisplay(frame);
     ui->encodedHexEdit->setText(hex);
 
-    // 经串口发送（可选）。
-    if (ui->sendViaSerialCheck->isChecked()) {
-        const QVariant portData = ui->portCombo->currentData();
-        const QString portName = portData.isValid() ? portData.toString() : ui->portCombo->currentText();
-        if (portName.isEmpty()) {
-            ui->encodedHexEdit->setText(hex + QStringLiteral("   [未选择端口]"));
-            return;
+    // 3) 传输层：经全局连接发送（未连接则仅显示组包结果，便于离线调试）。
+    if (m_conn && m_conn->isConnected()) {
+        QString err;
+        if (m_conn->sendFrame(frame, &err)) {
+            ui->encodedHexEdit->setText(hex + QStringLiteral("   [已发送 %1 字节]").arg(frame.size()));
+        } else {
+            ui->encodedHexEdit->setText(hex + QStringLiteral("   [发送失败] %1").arg(err));
         }
-        if (!m_serial.isOpen()) {
-            m_serial.setPortName(portName);
-            m_serial.setBaudRate(115200);
-            m_serial.openPort();
-        }
-        const qint64 n = m_serial.sendData(frame);
-        ui->encodedHexEdit->setText(hex + (n > 0
-            ? QStringLiteral("   [已发送 %1 字节]").arg(n)
-            : QStringLiteral("   [发送失败]")));
+    } else {
+        ui->encodedHexEdit->setText(hex + QStringLiteral("   [未连接，仅组包]"));
     }
 }
 
@@ -187,25 +185,28 @@ void ProtocolDebugPage::onDecodeClicked()
         ui->decodedTable->setRowCount(0);
         return;
     }
-    const QMap<QString, QVariant> decoded = FrameCodec::decode(m_loader.protocol(), frame);
+    // 手动解帧：尝试先按 A0/A3 去封装，取 payload 再解字段；失败则当裸 payload 直接解。
+    QByteArray payload = frame;
+    if (frame.size() >= 4) {
+        const services::ProtocolFrame pf = services::ProtocolParser::parseFrame(frame);
+        if (pf.isValid) {
+            payload = pf.payload;
+        }
+    }
+    const QMap<QString, QVariant> decoded = FrameCodec::decode(m_loader.protocol(), payload);
 
     // 收集字段名与类型映射（含 Struct 子字段）。
     struct RowInfo { QString field; QString typeStr; };
     QVector<RowInfo> rows;
-    QHash<QString, QString> typeOf;
     for (const FieldDef &f : m_loader.protocol().fields) {
         if (f.type == FieldType::Struct) {
             for (const FieldDef &c : f.children) {
                 const QString key = QStringLiteral("%1.%2").arg(f.name, c.name);
                 rows.append({ key, ProtocolFieldTableModel::typeToString(c.type) });
-                typeOf.insert(key, key);
             }
-            // 父结构原始 hex 行。
             rows.append({ f.name, QStringLiteral("Struct(hex)") });
-            typeOf.insert(f.name, f.name);
         } else {
             rows.append({ f.name, ProtocolFieldTableModel::typeToString(f.type) });
-            typeOf.insert(f.name, f.name);
         }
     }
 
@@ -214,29 +215,16 @@ void ProtocolDebugPage::onDecodeClicked()
         const QString key = rows[i].field;
         ui->decodedTable->setItem(i, 0, new QTableWidgetItem(key));
         ui->decodedTable->setItem(i, 1, new QTableWidgetItem(rows[i].typeStr));
-        const QVariant v = decoded.value(key);
-        ui->decodedTable->setItem(i, 2, new QTableWidgetItem(v.toString()));
+        ui->decodedTable->setItem(i, 2, new QTableWidgetItem(decoded.value(key).toString()));
     }
 }
 
-void ProtocolDebugPage::refreshPorts()
+void ProtocolDebugPage::onFrameReceived(const QByteArray &frame)
 {
-    const QString prev = ui->portCombo->currentText();
-    ui->portCombo->blockSignals(true);
-    ui->portCombo->clear();
-    const QVariantList ports = SerialPortManager::availablePorts();
-    if (ports.isEmpty()) {
-        ui->portCombo->addItem(QStringLiteral("（无可用串口）"));
-    } else {
-        for (const QVariant &v : ports) {
-            const QVariantMap m = v.toMap();
-            const QString name = m.value(QStringLiteral("portName")).toString();
-            ui->portCombo->addItem(name, name);
-        }
+    if (!m_loader.isLoaded()) {
+        return;
     }
-    const int idx = ui->portCombo->findData(prev);
-    if (idx >= 0) {
-        ui->portCombo->setCurrentIndex(idx);
-    }
-    ui->portCombo->blockSignals(false);
+    // 把收到的完整帧 hex 显示到解帧输入框（便于追溯），并解析。
+    ui->decodeHexEdit->setText(FrameCodec::toHexDisplay(frame));
+    onDecodeClicked();
 }
